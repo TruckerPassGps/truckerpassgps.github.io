@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguir camión · TruckerPass GPS</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0f17; color: #fff; font: 15px system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  #map { position: absolute; inset: 0; }
+  #card { position: absolute; left: 12px; right: 12px; bottom: 16px; background: #111827ee; border: 1px solid #334155; border-radius: 16px; padding: 14px 16px; }
+  h1 { margin: 0; font-size: 18px; color: #E3B04B; } .muted { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+  .big { font-size: 16px; font-weight: 800; margin-top: 6px; }
+  .truck { width: 34px; height: 34px; border-radius: 17px; background: #16a34a; border: 3px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 8px #000a; }
+</style></head><body>
+<div id="map"></div>
+<div id="card"><h1>🚛 Cargando…</h1><div class="muted">TruckerPass GPS</div></div>
+<script>
+  var URL_ = "https://ybwsmemdajtcssxldflz.supabase.co", KEY = "sb_publishable_b_VnmzGJbUFHKkLgyLraDg__b6BsDOI";
+  var token = new URLSearchParams(location.search).get('t') || '';
+  var card = document.getElementById('card');
+  var map = new maplibregl.Map({ container: 'map', style: 'https://tiles.openfreemap.org/styles/liberty', center: [-3.7, 40.4], zoom: 5 });
+  var el = document.createElement('div'); el.className = 'truck'; el.textContent = '🚛';
+  var marker = null, first = true;
+  function hm(d) { return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }
+  function ago(ts) { var m = Math.round((Date.now() - new Date(ts).getTime()) / 60000); return m < 1 ? 'ahora mismo' : m < 60 ? 'hace ' + m + ' min' : 'hace ' + Math.round(m / 60) + ' h'; }
+  function show(html) { card.innerHTML = html; }
+  function e(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+  function load() {
+    if (!URL_ || !KEY) return show('<h1>Página sin configurar</h1><div class="muted">Vuelve a crear la web con node scripts/build-web.js</div>');
+    fetch(URL_ + '/rest/v1/rpc/get_share', { method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_token: token }) })
+      .then(function (r) { return r.json(); }).then(function (s) {
+        if (!s || !s.found) return show('<h1>Enlace no válido</h1><div class="muted">Pide al camionero que te mande uno nuevo.</div>');
+        if (s.expired) return show('<h1>' + e(s.nickname || 'Camionero') + ' ha dejado de compartir</h1><div class="muted">El enlace ha caducado.</div>');
+        if (s.lat == null) return show('<h1>🚛 ' + e(s.nickname || 'Camionero') + '</h1><div class="muted">Esperando la primera posición…</div>');
+        var ll = [s.lng, s.lat];
+        if (!marker) marker = new maplibregl.Marker({ element: el }).setLngLat(ll).addTo(map); else marker.setLngLat(ll);
+        if (first) { map.jumpTo({ center: ll, zoom: 11 }); first = false; }
+        show('<h1>🚛 ' + e(s.nickname || 'Camionero') + '</h1>' +
+          (s.dest ? '<div class="big">Rumbo a ' + e(s.dest) + (s.eta ? ' · llegada prevista ' + hm(new Date(s.eta)) : '') + '</div>' : '') +
+          '<div class="muted">' + (s.speed > 5 ? Math.round(s.speed) + ' km/h · ' : 'Parado · ') + 'actualizado ' + ago(s.updated_at) +
+          ' · comparte hasta las ' + hm(new Date(s.expires_at)) + '</div>');
+      }).catch(function () { show('<h1>Sin conexión</h1><div class="muted">Reintentando…</div>'); });
+  }
+  load(); setInterval(load, 20000);
+</script></body></html>

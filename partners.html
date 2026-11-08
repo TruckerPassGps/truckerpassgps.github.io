@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TruckerPass Partners</title>
+<meta name="description" content="Pon tu gasolinera, restaurante, parking o taller en el mapa de los camioneros de TruckerPass GPS.">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+  :root { --bg: #0b0f17; --panel: #111827; --card: #1f2937; --line: #334155; --fg: #f1f5f9; --mut: #94a3b8; --amber: #E3B04B; --green: #22c55e; --red: #ef4444; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 16px 60px; }
+  header { display: flex; align-items: center; gap: 10px; padding: 18px 0; }
+  .logo { width: 38px; height: 38px; border-radius: 10px; background: var(--amber); color: #111; display: grid; place-items: center; font-weight: 900; }
+  header b { font-size: 18px; } header span { color: var(--mut); font-size: 13px; display: block; }
+  .hero { padding: 26px 0 10px; }
+  .hero h1 { font-size: clamp(28px, 6vw, 44px); line-height: 1.1; margin: 0 0 12px; }
+  .hero h1 em { color: var(--amber); font-style: normal; }
+  .hero p { color: #cbd5e1; font-size: 17px; max-width: 640px; }
+  .perks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin: 22px 0; }
+  .perk { background: var(--panel); border: 1px solid var(--card); border-radius: 14px; padding: 14px; }
+  .perk b { display: block; margin-bottom: 4px; } .perk span { color: var(--mut); font-size: 14px; }
+  .tabs { display: flex; gap: 8px; margin: 26px 0 14px; }
+  .tabs button { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--mut); font-weight: 800; font-size: 15px; cursor: pointer; }
+  .tabs button.on { background: var(--amber); color: #111; border-color: var(--amber); }
+  .box { background: var(--panel); border: 1px solid var(--card); border-radius: 16px; padding: 18px; }
+  label { display: block; font-weight: 700; font-size: 14px; margin: 12px 0 5px; }
+  input, select, textarea { width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--fg); font: inherit; }
+  textarea { min-height: 70px; resize: vertical; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; } .row > * { flex: 1; min-width: 140px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 16px; border-radius: 12px; border: 0; font: 800 15px system-ui, sans-serif; cursor: pointer; background: var(--card); color: var(--fg); }
+  .btn.main { background: var(--green); color: #052e16; width: 100%; margin-top: 16px; font-size: 16px; }
+  .btn.amber { background: var(--amber); color: #111; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  #map { height: 260px; border-radius: 12px; margin-top: 10px; border: 1px solid var(--line); }
+  .hint { color: var(--mut); font-size: 13px; margin-top: 6px; }
+  .msg { margin-top: 14px; padding: 12px; border-radius: 10px; font-weight: 700; display: none; }
+  .msg.ok { display: block; background: #052e16; color: #86efac; } .msg.err { display: block; background: #450a0a; color: #fca5a5; }
+  .check { display: flex; gap: 8px; align-items: flex-start; font-weight: 500; font-size: 14px; color: #cbd5e1; }
+  .check input { width: auto; margin-top: 4px; }
+  .stepper { display: flex; align-items: center; gap: 8px; } .stepper .num { flex: 1; text-align: center; font-size: 34px; font-weight: 900; color: var(--green); }
+  .stat { display: flex; gap: 10px; margin: 10px 0; } .stat div { flex: 1; background: var(--card); border-radius: 12px; padding: 10px; text-align: center; }
+  .stat b { display: block; font-size: 24px; }
+  .hidden { display: none; }
+  h2 { font-size: 20px; margin: 0 0 4px; } h3 { font-size: 16px; margin: 22px 0 4px; }
+  footer { color: var(--mut); font-size: 12px; text-align: center; margin-top: 40px; }
+  a { color: var(--amber); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="logo">TP</div><div><b>TruckerPass GPS</b><span>Portal de partners</span></div></header>
+
+  <section class="hero">
+    <h1>Que los camioneros <em>paren en tu casa</em>.</h1>
+    <p>Por una autovía pueden pasar cientos de camiones cada hora. Con TruckerPass apareces en su mapa y en su <b>plan del viaje</b>, justo cuando les toca parar a comer, a dormir o a repostar.</p>
+  </section>
+
+  <div class="perks">
+    <div class="perk"><b>⭐ Destacado en el mapa</b><span>Tu negocio sale en dorado, por encima del resto, y la app lo recomienda cuando la pausa cae cerca.</span></div>
+    <div class="perk"><b>🍽️ Menú del día y oferta</b><span>Cámbialos cuando quieras desde el móvil. Los camioneros los ven antes de llegar.</span></div>
+    <div class="perk"><b>🅿️ Plazas libres</b><span>Di cuántas plazas tienes libres y los camioneros vendrán con la seguridad de que hay sitio.</span></div>
+    <div class="perk"><b>🎟️ Cupones con QR</b><span>Los camioneros canjean puntos por un café o una ducha en tu local. Tú solo validas el código.</span></div>
+  </div>
+
+  <div class="tabs">
+    <button id="tApply" class="on" onclick="show('apply')">Darme de alta</button>
+    <button id="tPartner" onclick="show('partner')">Ya soy partner</button>
+  </div>
+
+  <!-- ═════ ALTA ═════ -->
+  <section id="apply" class="box">
+    <h2>Solicitud de alta</h2>
+    <div class="hint">Gratis hasta el 31/12/2026. Antes del 1/12/2026 te avisamos por email del precio de tu plan y de la fecha del primer cobro; si no quieres seguir, cancelas antes del 1/1/2027 sin coste. Te escribimos con tu PIN de acceso en cuanto revisemos la solicitud.</div>
+    <label>Nombre del negocio *</label><input id="aName" maxlength="80" placeholder="Restaurante El Camionero">
+    <label>Tipo *</label>
+    <select id="aKind">
+      <option value="restaurant">Restaurante / bar</option><option value="services">Área de servicio</option>
+      <option value="parking">Parking para camiones</option><option value="fuel">Gasolinera</option>
+      <option value="wash">Lavadero de camiones</option><option value="workshop">Taller</option><option value="other">Otro</option>
+    </select>
+    <label>Dirección *</label>
+    <div class="row"><input id="aAddr" maxlength="200" placeholder="Calle, pueblo, provincia"><button class="btn" onclick="geocode()">Buscar</button><button class="btn" onclick="myLoc()">📍 Estoy aquí</button></div>
+    <div id="map"></div>
+    <div class="hint" id="locHint">Toca el mapa para poner el pin justo en la entrada de camiones.</div>
+    <div class="row">
+      <div><label>Persona de contacto</label><input id="aContact" maxlength="80"></div>
+      <div><label>Teléfono *</label><input id="aPhone" maxlength="30" inputmode="tel"></div>
+    </div>
+    <label>Email</label><input id="aEmail" maxlength="120" inputmode="email">
+    <label>Oferta para los camioneros</label><input id="aOffer" maxlength="120" placeholder="Café gratis con TruckerPass">
+    <label>Algo más (plazas, horario, duchas…)</label><textarea id="aNote" maxlength="500"></textarea>
+    <label class="check"><input type="checkbox" id="aOk"> He leído y acepto las <a href="condiciones-partners.html" target="_blank">Condiciones para partners</a> y que TruckerPass GPS use estos datos para gestionar el alta y mostrar mi negocio en la app (<a href="politica-privacidad.html" target="_blank">Privacidad</a>).</label>
+    <button class="btn main" id="aSend" onclick="apply()">Enviar solicitud</button>
+    <div id="aMsg" class="msg"></div>
+  </section>
+
+  <!-- ═════ PARTNER ═════ -->
+  <section id="partner" class="box hidden">
+    <div id="pLogin">
+      <h2>Entrar con tu PIN</h2>
+      <div class="hint">El PIN de 8 letras y números que te dimos al darte de alta.</div>
+      <label>PIN</label><input id="pPin" maxlength="12" autocapitalize="characters" placeholder="A1B2C3D4">
+      <button class="btn main" onclick="login()">Entrar</button>
+      <div id="pMsg" class="msg"></div>
+    </div>
+    <div id="pPanel" class="hidden">
+      <h2 id="pName"></h2>
+      <div class="stat"><div><b id="pMonth">0</b>canjes este mes</div><div><b id="pTotal">0</b>en total</div></div>
+
+      <h3>🅿️ Plazas libres ahora</h3>
+      <div class="hint">Se ven durante 3 horas. Actualízalas cuando cambien.</div>
+      <div class="stepper"><button class="btn" onclick="sp(-5)">−5</button><button class="btn" onclick="sp(-1)">−1</button><div class="num" id="pSpaces">—</div><button class="btn" onclick="sp(1)">+1</button><button class="btn" onclick="sp(5)">+5</button></div>
+      <button class="btn main" onclick="saveSpaces()">Publicar plazas libres</button>
+
+      <h3>🍽️ Hoy en tu local</h3>
+      <label>Oferta para camioneros</label><input id="pOffer" maxlength="120">
+      <label>Menú del día (dura hasta mañana)</label><textarea id="pMenu" maxlength="300"></textarea>
+      <div class="row"><div><label>Horario</label><input id="pHours" maxlength="120" placeholder="6:00-23:00"></div><div><label>Teléfono</label><input id="pPhone" maxlength="30"></div></div>
+      <label class="check"><input type="checkbox" id="pShowers"> Tenemos duchas</label>
+      <button class="btn main" onclick="saveInfo()">Guardar</button>
+
+      <h3>🎟️ Validar cupón</h3>
+      <div class="row"><input id="cCode" placeholder="TP-XXXXXX" autocapitalize="characters"><button class="btn amber" onclick="checkCode()">Comprobar</button></div>
+      <div id="cRes" class="msg"></div>
+      <button class="btn main hidden" id="cUse" onclick="useCode()">Confirmar canje</button>
+
+      <div id="pSaved" class="msg"></div>
+      <p style="text-align:center;margin-top:24px"><button class="btn" onclick="logout()">Salir</button></p>
+    </div>
+  </section>
+
+  <footer>TruckerPass GPS · Mapa © colaboradores de OpenStreetMap, OpenFreeMap · <a href="politica-privacidad.html">Privacidad</a> · <a href="condiciones-partners.html">Condiciones para partners</a></footer>
+</div>
+
+<script>
+// Clave pública (publishable) de Supabase: es pública por diseño. Nunca pongas aquí la clave secreta.
+var SUPABASE_URL = 'https://ybwsmemdajtcssxldflz.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_b_VnmzGJbUFHKkLgyLraDg__b6BsDOI';
+var sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+async function session() {
+  if (!sb) throw new Error('No se pudo cargar. Recarga la página.');
+  var s = await sb.auth.getSession();
+  if (!s.data.session) { var r = await sb.auth.signInAnonymously(); if (r.error) throw r.error; }
+}
+async function call(fn, args) {
+  await session();
+  var r = await sb.rpc(fn, args || {});
+  if (r.error) throw new Error(/function|schema/i.test(r.error.message) ? 'El portal aún no está activado (falta supabase_v13.sql).' : r.error.message);
+  return r.data;
+}
+function $(id) { return document.getElementById(id); }
+function msg(id, text, ok) { var m = $(id); m.textContent = text; m.className = 'msg ' + (ok ? 'ok' : 'err'); }
+
+function show(t) {
+  $('apply').classList.toggle('hidden', t !== 'apply'); $('partner').classList.toggle('hidden', t !== 'partner');
+  $('tApply').classList.toggle('on', t === 'apply'); $('tPartner').classList.toggle('on', t === 'partner');
+  if (t === 'apply' && map) setTimeout(function () { map.resize(); }, 50);
+}
+
+// ── Mapa para poner el pin ──
+var map = null, pin = null, pos = null;
+try {
+  map = new maplibregl.Map({ container: 'map', style: 'https://tiles.openfreemap.org/styles/liberty', center: [-3.7, 40.4], zoom: 5 });
+  map.on('click', function (e) { setPos(e.lngLat.lat, e.lngLat.lng); });
+} catch (e) { $('map').textContent = 'No se pudo cargar el mapa.'; }
+function setPos(lat, lng, zoom) {
+  pos = { lat: lat, lng: lng };
+  if (!map) return;
+  if (!pin) {
+    pin = new maplibregl.Marker({ color: '#E3B04B', draggable: true }).setLngLat([lng, lat]).addTo(map);
+    pin.on('dragend', function () { var l = pin.getLngLat(); pos = { lat: l.lat, lng: l.lng }; });
+  } else pin.setLngLat([lng, lat]);
+  if (zoom) map.flyTo({ center: [lng, lat], zoom: zoom });
+  $('locHint').textContent = '📍 ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ' · arrastra el pin si hace falta.';
+}
+async function geocode() {
+  var q = $('aAddr').value.trim(); if (q.length < 3) return;
+  try {
+    var r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=' + encodeURIComponent(q));
+    var j = await r.json();
+    if (j[0]) setPos(+j[0].lat, +j[0].lon, 16); else $('locHint').textContent = 'No lo encuentro. Toca el mapa para poner el pin.';
+  } catch (e) { $('locHint').textContent = 'No se pudo buscar. Toca el mapa para poner el pin.'; }
+}
+function myLoc() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(function (p) { setPos(p.coords.latitude, p.coords.longitude, 17); }, function () { $('locHint').textContent = 'No se pudo obtener tu ubicación.'; });
+}
+
+async function apply() {
+  var name = $('aName').value.trim(), phone = $('aPhone').value.trim();
+  if (name.length < 2) return msg('aMsg', 'Escribe el nombre del negocio.');
+  if (!pos) return msg('aMsg', 'Pon la ubicación: busca la dirección o toca el mapa.');
+  if (phone.length < 6) return msg('aMsg', 'Escribe un teléfono de contacto.');
+  if (!$('aOk').checked) return msg('aMsg', 'Tienes que aceptar el uso de los datos.');
+  $('aSend').disabled = true;
+  try {
+    await call('partner_apply', { p: { name: name, kind: $('aKind').value, lat: pos.lat, lng: pos.lng, address: $('aAddr').value.trim(),
+      contact: $('aContact').value.trim(), phone: phone, email: $('aEmail').value.trim(), offer: $('aOffer').value.trim(), note: $('aNote').value.trim() } });
+    msg('aMsg', '✅ ¡Solicitud enviada! Te escribiremos con tu PIN en cuanto la revisemos.', true);
+  } catch (e) { msg('aMsg', e.message || 'No se pudo enviar. Inténtalo de nuevo.'); $('aSend').disabled = false; }
+}
+
+// ── Panel del partner ──
+var PIN = null, spaces = null, coupon = null;
+async function login(saved) {
+  var p = (saved || $('pPin').value).trim().toUpperCase(); if (!p) return;
+  try {
+    var d = await call('partner_login', { p_pin: p });
+    if (!d) { localStorage.removeItem('tp_pin'); return saved ? null : msg('pMsg', 'PIN no válido.'); }
+    PIN = p; try { localStorage.setItem('tp_pin', p); } catch (e) {}
+    fill(d);
+    $('pLogin').classList.add('hidden'); $('pPanel').classList.remove('hidden');
+  } catch (e) { if (!saved) msg('pMsg', e.message); }
+}
+function fill(d) {
+  $('pName').textContent = d.name; $('pMonth').textContent = d.month || 0; $('pTotal').textContent = d.total || 0;
+  $('pOffer').value = d.offer || ''; $('pMenu').value = d.menu || ''; $('pHours').value = d.hours || ''; $('pPhone').value = d.phone || '';
+  $('pShowers').checked = !!d.showers; spaces = d.spaces_free; $('pSpaces').textContent = spaces == null ? '—' : spaces;
+}
+function sp(n) { spaces = Math.max(0, Math.min(999, (spaces || 0) + n)); $('pSpaces').textContent = spaces; }
+async function update(body) {
+  try {
+    var r = await call('partner_update_self', { p_pin: PIN, p: body });
+    if (r.status !== 'ok') return msg('pSaved', 'PIN no válido. Sal y vuelve a entrar.');
+    msg('pSaved', '✅ Guardado. Los camioneros ya lo ven en el mapa.', true);
+  } catch (e) { msg('pSaved', e.message); }
+}
+function saveSpaces() { if (spaces != null) update({ spaces_free: spaces }); }
+function saveInfo() { update({ offer: $('pOffer').value, menu: $('pMenu').value, hours: $('pHours').value, phone: $('pPhone').value, showers: $('pShowers').checked }); }
+var STATUS = { valid: ['✅ Cupón válido: entrega el producto y confirma el canje.', true], used: ['❌ Este cupón ya se usó.', false],
+  not_found: ['❌ Ese código no existe.', false], other_partner: ['⚠️ Este cupón es de otro establecimiento.', false], bad_pin: ['PIN no válido.', false],
+  done: ['🎉 ¡Canje confirmado!', true] };
+async function checkCode() {
+  var c = $('cCode').value.trim().toUpperCase(); if (!c) return;
+  try {
+    var r = await call('partner_check', { p_pin: PIN, p_code: c }); coupon = c;
+    var st = STATUS[r.status] || ['?', false];
+    msg('cRes', st[0] + (r.title ? ' · ' + r.title : ''), st[1]);
+    $('cUse').classList.toggle('hidden', r.status !== 'valid');
+  } catch (e) { msg('cRes', e.message); }
+}
+async function useCode() {
+  try {
+    var r = await call('partner_use', { p_pin: PIN, p_code: coupon });
+    var st = STATUS[r.status] || ['?', false];
+    msg('cRes', st[0] + (r.title ? ' · ' + r.title : ''), st[1]);
+    $('cUse').classList.add('hidden');
+    if (r.status === 'done') { var d = await call('partner_login', { p_pin: PIN }); if (d) fill(d); }
+  } catch (e) { msg('cRes', e.message); }
+}
+function logout() { PIN = null; try { localStorage.removeItem('tp_pin'); } catch (e) {} $('pPanel').classList.add('hidden'); $('pLogin').classList.remove('hidden'); }
+try { var saved = localStorage.getItem('tp_pin'); if (saved) { show('partner'); login(saved); } } catch (e) {}
+</script>
+</body>
+</html>

@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TruckerPass GPS</title>
+<meta name="description" content="El GPS para camioneros: rutas por altura, peso y ADR, pausas del tacógrafo, gasóleo más barato y avisos entre camioneros. Beta gratis para Android.">
+<meta property="og:title" content="TruckerPass GPS · El GPS que sabe que llevas un camión"><meta property="og:description" content="Rutas por gálibo y peso, pausas del tacógrafo, gasóleo más barato y avisos entre camioneros. Beta gratis para Android."><meta property="og:image" content="img/compartir.jpg"><meta property="og:type" content="website">
+<meta name="theme-color" content="#0d1117">
+<link rel="icon" href="img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap">
+</head>
+<body>
+<style>
+/* Concepto: señal de carretera. Fondo de asfalto de noche, amarillo de señal de obra y la tipografía de los carteles
+   de autopista (Barlow); el gálibo de 3,8 m como "logo" de lo que hace la app. Una sola apariencia oscura, a propósito. */
+:root {
+  --asfalto: #0d1117;
+  --asfalto-2: #151b24;
+  --linea: #263040;
+  --texto: #e7ebf1;
+  --gris: #9aa6b6;
+  --senal: #f2b632;
+  --senal-tinta: #1a1405;
+  --verde: #22c55e;
+  --azul: #3b82f6;
+  --rojo: #d62828;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --cuerpo: "Barlow", "Segoe UI", Roboto, Arial, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { animation: none !important; transition: none !important; } }
+body { margin: 0; background: var(--asfalto); color: var(--texto); font: 17px/1.55 var(--cuerpo); }
+a { color: var(--senal); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.02; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 14px; }
+.marca { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--texto); font: 700 20px/1 var(--display); letter-spacing: .3px; }
+.marca img { width: 36px; height: 36px; border-radius: 9px; }
+.idiomas { display: flex; flex-wrap: wrap; gap: 4px; }
+.idiomas button { font: 600 13px/1 var(--cuerpo); letter-spacing: .6px; color: var(--gris); background: transparent; border: 1px solid var(--linea); border-radius: 7px; padding: 6px 8px; cursor: pointer; }
+.idiomas button[aria-pressed="true"] { color: var(--senal-tinta); background: var(--senal); border-color: var(--senal); }
+.idiomas button:focus-visible, .btn:focus-visible, .copiar:focus-visible, summary:focus-visible { outline: 3px solid var(--senal); outline-offset: 2px; }
+
+/* Portada */
+.hero { display: grid; grid-template-columns: 1.15fr .85fr; gap: 40px; align-items: center; padding-block: 28px 56px; }
+.hero > * { min-width: 0; }
+.etiqueta { display: inline-flex; gap: 8px; align-items: center; font: 700 14px/1 var(--display); letter-spacing: 1.6px; text-transform: uppercase; color: var(--senal-tinta); background: var(--senal); padding: 7px 10px; border-radius: 4px; }
+.hero h1 { font-size: clamp(44px, 7.4vw, 86px); font-weight: 800; margin-top: 18px; letter-spacing: -.5px; }
+.hero h1 em { font-style: normal; color: var(--senal); }
+.hero p.sub { font-size: 19px; color: #c8d0db; max-width: 33em; margin: 18px 0 0; }
+.acciones { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 54px; padding: 0 24px; border-radius: 12px; font: 700 20px/1 var(--display); letter-spacing: .4px; text-decoration: none; border: 0; cursor: pointer; }
+.btn.amarillo { background: var(--senal); color: var(--senal-tinta); }
+.btn.verde { background: var(--verde); color: #04210f; }
+.btn.borde { background: transparent; color: var(--texto); border: 2px solid var(--linea); }
+.btn:hover { filter: brightness(1.08); }
+.datos { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 22px; color: var(--gris); font-size: 15px; }
+.datos span::before { content: "✔ "; color: var(--verde); }
+
+.movil { position: relative; justify-self: center; width: min(320px, 100%); }
+.movil .pantalla { border-radius: 30px; border: 8px solid #222a36; overflow: hidden; box-shadow: 0 30px 60px rgba(0,0,0,.55); aspect-ratio: 9 / 16; max-width: 100%; background: #000; }
+.movil .pantalla img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.galibo { position: absolute; left: -46px; top: 38px; width: 122px; height: 122px; filter: drop-shadow(0 8px 14px rgba(0,0,0,.5)); animation: entra .7s .2s both cubic-bezier(.2,.9,.3,1.3); }
+.kmcartel { position: absolute; right: -26px; bottom: 54px; background: var(--azul); color: #fff; border: 3px solid #fff; border-radius: 8px; padding: 8px 12px; font: 700 18px/1.1 var(--display); box-shadow: 0 8px 18px rgba(0,0,0,.45); animation: entra .7s .45s both cubic-bezier(.2,.9,.3,1.3); }
+.kmcartel small { display: block; font: 600 12px/1.2 var(--cuerpo); opacity: .9; }
+@keyframes entra { from { transform: translateY(14px) scale(.9); } to { transform: none; } }
+
+/* Franja de carretera */
+.raya { height: 8px; background: repeating-linear-gradient(90deg, var(--senal) 0 46px, transparent 46px 86px); opacity: .85; }
+
+section { padding-block: 64px; }
+.titulo { display: flex; flex-direction: column; gap: 10px; margin-bottom: 30px; }
+.titulo .pre { font: 700 14px/1 var(--display); letter-spacing: 2px; text-transform: uppercase; color: var(--senal); }
+.titulo h2 { font-size: clamp(34px, 5vw, 52px); font-weight: 800; }
+.titulo p { color: var(--gris); margin: 0; max-width: 40em; }
+
+.funciones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--linea); border: 1px solid var(--linea); border-radius: 16px; overflow: hidden; }
+.funcion { background: var(--asfalto-2); padding: 24px 22px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.funcion .ic { width: 46px; height: 46px; border-radius: 10px; display: grid; place-items: center; font-size: 24px; background: #1f2835; }
+.funcion h3 { font-size: 26px; font-weight: 700; }
+.funcion p { margin: 0; color: #c2cad5; font-size: 16px; }
+.ademas { margin-top: 18px; color: var(--gris); font-size: 16px; }
+.ademas b { color: var(--texto); font-weight: 600; }
+
+.capturas { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 10px; scroll-snap-type: x mandatory; }
+.capturas figure { margin: 0; flex: 0 0 200px; scroll-snap-align: start; }
+.capturas img { width: 200px; aspect-ratio: 9 / 16; object-fit: cover; border-radius: 16px; border: 1px solid var(--linea); display: block; max-width: 100%; }
+.capturas figcaption { font-size: 14px; color: var(--gris); margin-top: 8px; }
+
+/* Pasos para entrar */
+.entrar { background: var(--senal); color: var(--senal-tinta); }
+.entrar .titulo .pre { color: #6b4b00; }
+.entrar .titulo p { color: #3d2e07; }
+.pasos { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.paso { background: var(--asfalto); color: var(--texto); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.paso .num { width: 44px; height: 44px; border-radius: 50%; background: var(--senal); color: var(--senal-tinta); display: grid; place-items: center; font: 800 26px/1 var(--display); }
+.paso h3 { font-size: 28px; }
+.paso p { margin: 0; color: #c2cad5; }
+.paso .btn { align-self: flex-start; margin-top: auto; }
+.nota { margin-top: 16px; font-size: 15px; color: #3d2e07; }
+.codigo { margin-top: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; background: rgba(0,0,0,.08); border: 2px dashed rgba(26,20,5,.35); border-radius: 12px; padding: 14px 16px; }
+.codigo code { font: 800 24px/1 var(--display); letter-spacing: 2px; background: var(--asfalto); color: var(--senal); padding: 8px 12px; border-radius: 8px; user-select: all; }
+.canje { flex-basis: 100%; font-size: 14px; color: #3d2e07; }
+.copiar { font: 700 15px/1 var(--cuerpo); padding: 10px 14px; border-radius: 9px; border: 0; background: var(--asfalto); color: var(--texto); cursor: pointer; }
+
+.beta { display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start; background: var(--asfalto-2); border: 1px solid var(--linea); border-radius: 16px; padding: 26px; }
+.beta .aviso { width: 64px; height: 56px; }
+.beta h3 { font-size: 30px; margin-bottom: 8px; }
+.beta p { margin: 0 0 8px; color: #c2cad5; }
+.beta ul { margin: 6px 0 0; padding-left: 20px; color: #c2cad5; }
+
+.preguntas details { border-bottom: 1px solid var(--linea); padding-block: 16px; }
+.preguntas summary { cursor: pointer; font: 700 22px/1.2 var(--display); list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+.preguntas summary::-webkit-details-marker { display: none; }
+.preguntas summary::after { content: "+"; color: var(--senal); font-size: 26px; line-height: 1; }
+.preguntas details[open] summary::after { content: "–"; }
+.preguntas p { margin: 10px 0 0; color: #c2cad5; max-width: 46em; }
+
+footer { border-top: 1px solid var(--linea); padding-block: 30px 40px; color: var(--gris); font-size: 14px; }
+footer nav { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 12px; }
+footer a { color: var(--gris); }
+
+@media (max-width: 860px) {
+  .hero { grid-template-columns: 1fr; gap: 34px; padding-block: 18px 44px; }
+  .movil { width: min(280px, 78%); }
+  .galibo { left: -34px; width: 96px; height: 96px; }
+  .kmcartel { right: -14px; }
+  .funciones { grid-template-columns: 1fr 1fr; }
+  .pasos { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  body { font-size: 16px; }
+  .top { flex-wrap: wrap; }
+  .idiomas { width: 100%; justify-content: space-between; }
+  .idiomas button { flex: 1; padding: 8px 0; }
+  .funciones { grid-template-columns: 1fr; }
+  .btn { width: 100%; }
+  .paso .btn { align-self: stretch; }
+  .beta { grid-template-columns: 1fr; }
+  section { padding-block: 48px; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <a class="marca" href="#arriba" id="arriba"><img src="img/icono.png" alt="" width="36" height="36">TruckerPass GPS</a>
+    <div class="idiomas" role="group" aria-label="Idioma">
+      <button type="button" data-lang="es" aria-pressed="true">ES</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+      <button type="button" data-lang="fr" aria-pressed="false">FR</button>
+      <button type="button" data-lang="pt" aria-pressed="false">PT</button>
+      <button type="button" data-lang="ro" aria-pressed="false">RO</button>
+      <button type="button" data-lang="pl" aria-pressed="false">PL</button>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div>
+      <span class="etiqueta" data-i="tag">Gratis · Android</span>
+      <h1 data-i="h1">El GPS que sabe que llevas <em>un camión</em></h1>
+      <p class="sub" data-i="sub">Rutas por altura, peso y ADR, las pausas de tu tacógrafo, el gasóleo más barato de tu ruta y avisos entre camioneros. Hecho con camioneros, para camioneros.</p>
+      <div class="acciones">
+        <a class="btn amarillo" href="#entrar" data-i="cta">Quiero probarla gratis</a>
+        <a class="btn borde" href="#funciones" data-i="cta2">Qué hace</a>
+      </div>
+      <div class="datos"><span data-i="d1">Toda Europa</span><span data-i="d2">Más de 30 idiomas</span><span data-i="d3">Gratis</span></div>
+    </div>
+    <div class="movil">
+      <div class="pantalla"><img src="img/ruta.jpg" alt="Pantalla de TruckerPass GPS con una ruta para camión y sus alternativas" data-ialt="altHero"></div>
+      <svg class="galibo" viewBox="0 0 120 120" role="img" aria-label="Señal de altura máxima 3,8 metros">
+        <circle cx="60" cy="60" r="56" fill="#fff"/><circle cx="60" cy="60" r="50" fill="none" stroke="#d62828" stroke-width="11"/>
+        <path d="M60 22 l9 11 h-18 z M60 98 l9 -11 h-18 z" fill="#111"/>
+        <text x="60" y="71" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="800" font-size="31" fill="#111">3,8 m</text>
+      </svg>
+      <div class="kmcartel"><span data-i="kmTitle">Pausa en 2 h 10</span><small data-i="kmSub">Área de Fraga · vigilada</small></div>
+    </div>
+  </div>
+</div>
+<div class="raya" aria-hidden="true"></div>
+
+<section id="funciones">
+  <div class="wrap">
+    <div class="titulo"><span class="pre" data-i="fPre">Lo que hace</span><h2 data-i="fH">Todo lo que un GPS de coche no sabe</h2></div>
+    <div class="funciones">
+      <div class="funcion"><div class="ic">🚛</div><h3 data-i="f1t">Rutas para tu camión</h3><p data-i="f1">Calcula la ruta con la altura, el peso, el largo y el ADR de tu camión. Te enseña 2 o 3 rutas con km, tiempo y peajes, y comprueba cada gálibo.</p></div>
+      <div class="funcion"><div class="ic">⏱️</div><h3 data-i="f2t">Pausas con el tacógrafo</h3><p data-i="f2">Te dice cuándo te toca la pausa de 45 minutos y el descanso, y en qué área parar para que te dé tiempo.</p></div>
+      <div class="funcion"><div class="ic">⛽</div><h3 data-i="f3t">Gasóleo más barato</h3><p data-i="f3">Precios de España, Francia, Portugal y Austria con tus tarjetas (DKV, UTA, AS24…). Te dice dónde repostar y cuánto ahorras.</p></div>
+      <div class="funcion"><div class="ic">📢</div><h3 data-i="f4t">Avisos entre camioneros</h3><p data-i="f4">Accidentes, obras, atascos, colas en la frontera y parkings llenos, de camioneros verificados, con la carretera y el sitio.</p></div>
+      <div class="funcion"><div class="ic">⚠️</div><h3 data-i="f5t">Peligros antes de salir</h3><p data-i="f5">Puertos, túneles, bajadas largas, radares, zonas de frenado y ZBE de toda la ruta, en una lista.</p></div>
+      <div class="funcion"><div class="ic">🎙️</div><h3 data-i="f6t">Te habla y te escucha</h3><p data-i="f6">Guía por voz también con la pantalla apagada. Le hablas sin tocar el móvil: «llévame a Zaragoza», «hay un atasco».</p></div>
+    </div>
+    <p class="ademas" data-i="mas"><b>Y además:</b> mapas sin conexión, cronómetro de espera en el muelle con justificante en PDF, gastos, tickets y CMR, y canal de voz con los camioneros de tu zona.</p>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="capturas">
+      <figure><img src="img/ruta.jpg" alt="" loading="lazy"><figcaption data-i="c1">Rutas con gálibos y peajes</figcaption></figure>
+      <figure><img src="img/reportes.jpg" alt="" loading="lazy"><figcaption data-i="c4">Parkings, muelles y avisos</figcaption></figure>
+      <figure><img src="img/guia.jpg" alt="" loading="lazy"><figcaption data-i="c2">Guía con carril y radares</figcaption></figure>
+      <figure><img src="img/tacografo.jpg" alt="" loading="lazy"><figcaption data-i="c3">Tu tacógrafo y las pausas</figcaption></figure>
+      <figure><img src="img/channel.jpg" alt="" loading="lazy"><figcaption data-i="f4t">Avisos entre camioneros</figcaption></figure>
+      <figure><img src="img/gastos.jpg" alt="" loading="lazy"><figcaption data-i="c5">Gastos y papeles del mes</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="entrar" id="entrar">
+  <div class="wrap">
+    <div class="titulo"><span class="pre" data-i="ePre">Pruébala gratis</span><h2 data-i="eH">Dos pasos y la tienes</h2><p data-i="eP">Es gratis. Primero te apuntas como probador y luego la instalas desde Google Play. Tarda dos minutos.</p></div>
+    <div class="pasos">
+      <div class="paso"><div class="num">1</div><h3 data-i="p1t">Únete al grupo de probadores</h3><p data-i="p1">Entra con la misma cuenta de Gmail que usas en Play Store y pulsa el botón «Unirse al grupo» de arriba. Si te sale «No tienes permiso», no pasa nada: pulsa igualmente «Unirse al grupo».</p>
+        <a class="btn amarillo" href="https://groups.google.com/g/truckerpassgps-beta" target="_blank" rel="noopener" data-i="p1b">Abrir el grupo</a></div>
+      <div class="paso"><div class="num">2</div><h3 data-i="p2t">Hazte probador e instálala</h3><p data-i="p2">Abre este enlace y pulsa «Convertirse en tester» (en inglés, «Become a tester»). Cuando ponga «Ya eres tester» («You are a tester»), pulsa el enlace azul «Descargar en Google Play» («download it on Google Play») e instálala.</p>
+        <a class="btn verde" href="https://play.google.com/apps/testing/com.truckerpass.gps" target="_blank" rel="noopener" data-i="p2b">Hazte probador</a></div>
+    </div>
+    <p class="nota" data-i="nota">Si Google Play dice que la app no está disponible o no te deja descargarla, es normal al principio: Google tarda un rato en darte permiso (a veces hasta unas horas). Espera y vuelve a abrir el enlace del paso 2; no hace falta repetir el paso 1.</p>
+    <div class="codigo"><span data-i="cod">Al registrarte en la app, en «Código de invitación o de la beta», pon este código. En cuanto te verifiquemos como camionero te regalamos 500 puntos, además de los 1.250 de bienvenida:</span><code id="codigo">WEB</code><button class="copiar" type="button" id="copiar" data-i="copiar">Copiar</button><small class="canje" data-i="canje">Los puntos se podrán canjear en gasolineras, cafés y áreas partner cuando lleguen.</small></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="beta">
+      <svg class="aviso" viewBox="0 0 64 56" aria-hidden="true"><path d="M32 3 L61 53 H3 Z" fill="#f2b632" stroke="#1a1405" stroke-width="4" stroke-linejoin="round"/><rect x="29" y="18" width="6" height="20" rx="2" fill="#1a1405"/><circle cx="32" cy="45" r="3.5" fill="#1a1405"/></svg>
+      <div>
+        <h3 data-i="bH">Es una beta: algo fallará</h3>
+        <p data-i="bP">La estamos probando en ruta con camioneros de verdad. Lo que más nos ayuda que nos cuentes desde la propia app:</p>
+        <ul>
+          <li data-i="b1">Dónde te mandó una ruta por un sitio por el que no cabe un camión.</li>
+          <li data-i="b2">Qué le dijiste a la voz y no lo entendió.</li>
+          <li data-i="b3">Cuánta batería gastó en un viaje.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="preguntas" style="padding-top:0">
+  <div class="wrap">
+    <div class="titulo"><span class="pre" data-i="qPre">Preguntas</span><h2 data-i="qH">Lo que suelen preguntar</h2></div>
+    <details><summary data-i="q1">¿Cuánto cuesta?</summary><p data-i="a1">Nada. Es gratis.</p></details>
+    <details><summary data-i="q2">¿Hay para iPhone?</summary><p data-i="a2">Todavía no. Por ahora solo para Android.</p></details>
+    <details><summary data-i="q3">¿Sirve fuera de España?</summary><p data-i="a3">Sí. Calcula rutas por toda Europa y la app está en más de 30 idiomas.</p></details>
+    <details><summary data-i="q4">¿Gasta mucha batería?</summary><p data-i="a4">Ahorra batería cuando el camión está parado. En viajes largos, llévala enchufada como cualquier GPS.</p></details>
+    <details><summary data-i="q5">¿Qué hacéis con mis datos?</summary><p data-i="a5">Tu ubicación se usa para guiarte y no guardamos tu recorrido en nuestros servidores. Lo tienes todo en la <a href="privacidad.html">política de privacidad</a>.</p></details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <nav>
+      <a href="privacidad.html" data-i="l1">Privacidad</a><a href="terminos.html" data-i="l2">Términos</a><a href="puntos.html" data-i="l3">Puntos y cupones</a><a href="condiciones-partners.html" data-i="l4">Condiciones para partners</a><a href="partners.html" data-i="l6">Soy una gasolinera o un área</a><a href="borrar-cuenta.html" data-i="l5">Borrar cuenta</a>
+    </nav>
+    <div>TruckerPass GPS · Iñaki Nieto Blázquez (TruckerPassGps) · NIF 73460801C · Calle de Cadarso 16, Local, 28008 Madrid, España · <span data-i="contacto">Contacto</span>: TruckerPassGps@gmail.com</div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var T = {
+    en: { tag: "Free · Android", h1: "The GPS that knows you drive <em>a truck</em>", sub: "Routes by height, weight and ADR, your tachograph breaks, the cheapest diesel on your route and alerts between drivers. Made with truck drivers, for truck drivers.", cta: "Try it free", cta2: "What it does", d1: "All of Europe", d2: "30+ languages", d3: "Free", kmTitle: "Break in 2 h 10", kmSub: "Fraga services · guarded", fPre: "What it does", fH: "Everything a car GPS doesn't know", f1t: "Routes for your truck", f1: "Plans the route with your truck's height, weight, length and ADR. Shows 2 or 3 routes with km, time and tolls, and checks every low bridge.", f2t: "Breaks with the tachograph", f2: "Tells you when your 45-minute break and your rest are due, and which truck stop to use so you make it in time.", f3t: "Cheapest diesel", f3: "Prices in Spain, France, Portugal and Austria with your fuel cards (DKV, UTA, AS24…). Tells you where to fill up and how much you save.", f4t: "Alerts between drivers", f4: "Accidents, roadworks, traffic jams, border queues and full truck parks, from verified drivers, with the road and the place.", f5t: "Hazards before you leave", f5: "Mountain passes, tunnels, long descents, speed cameras, escape lanes and low-emission zones for the whole route, in one list.", f6t: "It talks and listens", f6: "Voice guidance even with the screen off. Talk to it without touching the phone: “take me to Lyon”, “there's a traffic jam”.", mas: "<b>And also:</b> offline maps, a dock waiting timer with a PDF receipt, expenses, receipts and CMR, and a voice channel with drivers near you.", c1: "Routes with low bridges and tolls", c2: "Guidance with lanes and cameras", c3: "Your tachograph and breaks", c4: "Truck parks, docks and alerts", c5: "Monthly expenses and papers", ePre: "Try it free", eH: "Two steps and it's yours", eP: "It's free. First you sign up as a tester, then you install it from Google Play. It takes two minutes.", p1t: "Join the testers group", p1: "Use the same Gmail account as in Play Store and tap the “Join group” button at the top. If it says “You don't have permission”, that's normal: tap “Join group” anyway.", p1b: "Open the group", p2t: "Become a tester and install", p2: "Open this link and tap “Become a tester”. When it says “You are a tester”, tap the blue link “download it on Google Play” and install it.", p2b: "Become a tester", nota: "If Google Play says the app isn't available or won't let you download it, that's normal at first: Google takes a while to give you access (sometimes a few hours). Wait and open the step 2 link again; no need to repeat step 1.", cod: "When you sign up in the app, enter this code under “Invitation or beta code”. As soon as you're verified as a driver you get 500 points, on top of the 1,250 welcome points:", canje: "Points can be redeemed at partner fuel stations, cafés and truck stops once they join.", copiar: "Copy", copiado: "Copied", bH: "It's a beta: something will fail", bP: "We're testing it on the road with real drivers. What helps most is telling us, from the app itself:", b1: "Where a route sent you somewhere a truck doesn't fit.", b2: "What you said to the voice that it didn't understand.", b3: "How much battery it used on a trip.", qPre: "Questions", qH: "What people usually ask", q1: "How much does it cost?", a1: "Nothing. It's free.", q2: "Is there an iPhone version?", a2: "Not yet. Android only for now.", q3: "Does it work outside Spain?", a3: "Yes. It plans routes across Europe and the app comes in more than 30 languages.", q4: "Does it use a lot of battery?", a4: "It saves battery when the truck is parked. On long trips keep it plugged in, like any GPS.", q5: "What do you do with my data?", a5: "Your location is used to guide you and we don't store your trips on our servers. It's all in the <a href=\"privacidad.html\">privacy policy</a>.", l1: "Privacy", l2: "Terms", l3: "Points and coupons", l4: "Partner terms", l5: "Delete account", l6: "I run a fuel station or truck stop", contacto: "Contact", altHero: "TruckerPass GPS screen with a truck route and alternatives" },
+    fr: { tag: "Gratuit · Android", h1: "Le GPS qui sait que vous conduisez <em>un camion</em>", sub: "Itinéraires selon la hauteur, le poids et l'ADR, les pauses de votre chronotachygraphe, le gazole le moins cher sur votre route et des alertes entre routiers. Fait avec des routiers, pour les routiers.", cta: "Je l'essaie gratuitement", cta2: "Ce qu'il fait", d1: "Toute l'Europe", d2: "Plus de 30 langues", d3: "Gratuit", kmTitle: "Pause dans 2 h 10", kmSub: "Aire de Fraga · surveillée", fPre: "Ce qu'il fait", fH: "Tout ce qu'un GPS de voiture ignore", f1t: "Itinéraires pour votre camion", f1: "Calcule l'itinéraire selon la hauteur, le poids, la longueur et l'ADR de votre camion. Propose 2 ou 3 itinéraires avec km, temps et péages, et vérifie chaque gabarit.", f2t: "Pauses avec le chrono", f2: "Vous dit quand prendre la pause de 45 minutes et le repos, et sur quelle aire vous arrêter pour y arriver à temps.", f3t: "Le gazole le moins cher", f3: "Prix en Espagne, France, Portugal et Autriche avec vos cartes (DKV, UTA, AS24…). Vous dit où faire le plein et combien vous économisez.", f4t: "Alertes entre routiers", f4: "Accidents, travaux, bouchons, files à la frontière et parkings pleins, signalés par des routiers vérifiés, avec la route et le lieu.", f5t: "Les dangers avant de partir", f5: "Cols, tunnels, longues descentes, radars, voies de détresse et ZFE de tout l'itinéraire, dans une liste.", f6t: "Il parle et il écoute", f6: "Guidage vocal même écran éteint. Parlez-lui sans toucher le téléphone : « emmène-moi à Lyon », « il y a un bouchon ».", mas: "<b>Et aussi :</b> cartes hors ligne, chronomètre d'attente au quai avec justificatif PDF, frais, tickets et CMR, et canal vocal avec les routiers de votre zone.", c1: "Itinéraires avec gabarits et péages", c2: "Guidage avec voies et radars", c3: "Votre chrono et vos pauses", c4: "Parkings, quais et alertes", c5: "Frais et papiers du mois", ePre: "Essayez-la gratuitement", eH: "Deux étapes et c'est fait", eP: "C'est gratuit. Vous vous inscrivez d'abord comme testeur, puis vous l'installez depuis Google Play. Deux minutes.", p1t: "Rejoignez le groupe de testeurs", p1: "Utilisez le même compte Gmail que sur le Play Store et appuyez sur le bouton « Rejoindre le groupe » en haut. S'il affiche « Vous n'êtes pas autorisé », c'est normal : appuyez quand même sur « Rejoindre le groupe ».", p1b: "Ouvrir le groupe", p2t: "Devenez testeur et installez-la", p2: "Ouvrez ce lien et appuyez sur « Devenir testeur » (« Become a tester »). Quand il affiche « Vous êtes testeur » (« You are a tester »), appuyez sur le lien bleu « Télécharger sur Google Play » (« download it on Google Play ») et installez-la.", p2b: "Devenir testeur", nota: "Si Google Play indique que l'application n'est pas disponible ou ne vous laisse pas la télécharger, c'est normal au début : Google met un moment à vous donner l'accès (parfois quelques heures). Attendez et rouvrez le lien de l'étape 2 ; inutile de refaire l'étape 1.", cod: "À l'inscription dans l'application, saisissez ce code dans « Code d'invitation ou bêta ». Dès que vous êtes vérifié comme routier, vous recevez 500 points, en plus des 1 250 de bienvenue :", canje: "Les points pourront être échangés dans les stations, cafés et aires partenaires dès leur arrivée.", copiar: "Copier", copiado: "Copié", bH: "C'est une bêta : il y aura des bugs", bP: "Nous la testons sur la route avec de vrais routiers. Ce qui nous aide le plus, c'est que vous nous disiez, depuis l'application :", b1: "Où un itinéraire vous a envoyé là où un camion ne passe pas.", b2: "Ce que vous avez dit à la voix et qu'elle n'a pas compris.", b3: "Combien de batterie elle a consommé sur un trajet.", qPre: "Questions", qH: "Les questions fréquentes", q1: "Combien ça coûte ?", a1: "Rien. C'est gratuit.", q2: "Existe-t-il pour iPhone ?", a2: "Pas encore. Pour l'instant, uniquement sur Android.", q3: "Ça marche hors d'Espagne ?", a3: "Oui. Il calcule des itinéraires dans toute l'Europe et l'application existe en plus de 30 langues.", q4: "Ça consomme beaucoup de batterie ?", a4: "Il économise la batterie quand le camion est à l'arrêt. Sur les longs trajets, gardez-le branché comme n'importe quel GPS.", q5: "Que faites-vous de mes données ?", a5: "Votre position sert à vous guider et nous ne gardons pas vos trajets sur nos serveurs. Tout est dans la <a href=\"privacidad.html\">politique de confidentialité</a>.", l1: "Confidentialité", l2: "Conditions", l3: "Points et coupons", l4: "Conditions partenaires", l5: "Supprimer le compte", l6: "Je suis une station ou une aire", contacto: "Contact", altHero: "Écran de TruckerPass GPS avec un itinéraire poids lourd" },
+    pt: { tag: "Grátis · Android", h1: "O GPS que sabe que conduzes <em>um camião</em>", sub: "Rotas por altura, peso e ADR, as pausas do teu tacógrafo, o gasóleo mais barato na tua rota e avisos entre camionistas. Feito com camionistas, para camionistas.", cta: "Quero experimentar grátis", cta2: "O que faz", d1: "Toda a Europa", d2: "Mais de 30 idiomas", d3: "Grátis", kmTitle: "Pausa em 2 h 10", kmSub: "Área de Fraga · vigiada", fPre: "O que faz", fH: "Tudo o que um GPS de carro não sabe", f1t: "Rotas para o teu camião", f1: "Calcula a rota com a altura, o peso, o comprimento e o ADR do teu camião. Mostra 2 ou 3 rotas com km, tempo e portagens, e verifica cada gabarito.", f2t: "Pausas com o tacógrafo", f2: "Diz-te quando tens a pausa de 45 minutos e o descanso, e em que área parar para chegares a tempo.", f3t: "Gasóleo mais barato", f3: "Preços em Espanha, França, Portugal e Áustria com os teus cartões (DKV, UTA, AS24…). Diz-te onde abastecer e quanto poupas.", f4t: "Avisos entre camionistas", f4: "Acidentes, obras, filas de trânsito, filas na fronteira e parques cheios, de camionistas verificados, com a estrada e o local.", f5t: "Perigos antes de sair", f5: "Serras, túneis, descidas longas, radares, escapatórias e ZER de toda a rota, numa lista.", f6t: "Fala e ouve", f6: "Navegação por voz mesmo com o ecrã desligado. Falas sem tocar no telemóvel: «leva-me a Madrid», «há uma fila».", mas: "<b>E também:</b> mapas offline, cronómetro de espera no cais com comprovativo em PDF, despesas, talões e CMR, e canal de voz com os camionistas da tua zona.", c1: "Rotas com gabaritos e portagens", c2: "Navegação com faixas e radares", c3: "O teu tacógrafo e as pausas", c4: "Parques, cais e avisos", c5: "Despesas e papéis do mês", ePre: "Experimenta grátis", eH: "Dois passos e já está", eP: "É grátis. Primeiro inscreves-te como testador e depois instalas pelo Google Play. Demora dois minutos.", p1t: "Junta-te ao grupo de testadores", p1: "Entra com a mesma conta Gmail que usas na Play Store e toca no botão «Aderir ao grupo» em cima. Se aparecer «Não tens permissão», é normal: toca na mesma em «Aderir ao grupo».", p1b: "Abrir o grupo", p2t: "Torna-te testador e instala", p2: "Abre este link e toca em «Tornar-se testador» («Become a tester»). Quando aparecer «Já és testador» («You are a tester»), toca no link azul «Transferir no Google Play» («download it on Google Play») e instala-a.", p2b: "Tornar-me testador", nota: "Se o Google Play disser que a app não está disponível ou não te deixar transferi-la, é normal no início: a Google demora um pouco a dar-te acesso (às vezes umas horas). Espera e volta a abrir o link do passo 2; não precisas de repetir o passo 1.", cod: "Ao registares-te na app, em «Código de convite ou da beta», põe este código. Assim que fores verificado como camionista, oferecemos-te 500 pontos, além dos 1.250 de boas-vindas:", canje: "Os pontos poderão ser trocados em postos, cafés e áreas parceiras quando chegarem.", copiar: "Copiar", copiado: "Copiado", bH: "É uma beta: algo vai falhar", bP: "Estamos a testá-la na estrada com camionistas a sério. O que mais nos ajuda é que nos digas, pela própria app:", b1: "Onde uma rota te mandou por um sítio onde um camião não cabe.", b2: "O que disseste à voz e ela não percebeu.", b3: "Quanta bateria gastou numa viagem.", qPre: "Perguntas", qH: "O que costumam perguntar", q1: "Quanto custa?", a1: "Nada. É grátis.", q2: "Há para iPhone?", a2: "Ainda não. Por agora só Android.", q3: "Funciona fora de Espanha?", a3: "Sim. Calcula rotas por toda a Europa e a app está em mais de 30 idiomas.", q4: "Gasta muita bateria?", a4: "Poupa bateria quando o camião está parado. Em viagens longas, leva-a ligada ao carregador como qualquer GPS.", q5: "O que fazem com os meus dados?", a5: "A tua localização serve para te guiar e não guardamos o teu percurso nos nossos servidores. Está tudo na <a href=\"privacidad.html\">política de privacidade</a>.", l1: "Privacidade", l2: "Termos", l3: "Pontos e cupões", l4: "Condições para parceiros", l5: "Apagar conta", l6: "Sou um posto ou uma área", contacto: "Contacto", altHero: "Ecrã do TruckerPass GPS com uma rota para camião" },
+    ro: { tag: "Gratuit · Android", h1: "GPS-ul care știe că ai <em>un camion</em>", sub: "Rute după înălțime, greutate și ADR, pauzele de la tahograf, cea mai ieftină motorină pe ruta ta și alerte între șoferi. Făcut cu șoferi de camion, pentru șoferi de camion.", cta: "Vreau să-l încerc gratis", cta2: "Ce face", d1: "Toată Europa", d2: "Peste 30 de limbi", d3: "Gratuit", kmTitle: "Pauză în 2 h 10", kmSub: "Parcarea Fraga · păzită", fPre: "Ce face", fH: "Tot ce nu știe un GPS de mașină", f1t: "Rute pentru camionul tău", f1: "Calculează ruta după înălțimea, greutatea, lungimea și ADR-ul camionului. Îți arată 2 sau 3 rute cu km, timp și taxe și verifică fiecare limită de înălțime.", f2t: "Pauze cu tahograful", f2: "Îți spune când îți vine pauza de 45 de minute și repausul, și în ce parcare să oprești ca să ajungi la timp.", f3t: "Cea mai ieftină motorină", f3: "Prețuri în Spania, Franța, Portugalia și Austria cu cardurile tale (DKV, UTA, AS24…). Îți spune unde să alimentezi și cât economisești.", f4t: "Alerte între șoferi", f4: "Accidente, lucrări, ambuteiaje, cozi la graniță și parcări pline, de la șoferi verificați, cu drumul și locul.", f5t: "Pericole înainte de plecare", f5: "Pasuri, tuneluri, coborâri lungi, radare, benzi de frânare și zone cu emisii scăzute pe toată ruta, într-o listă.", f6t: "Vorbește și ascultă", f6: "Ghidare vocală și cu ecranul stins. Îi vorbești fără să atingi telefonul: „du-mă la Lyon”, „e un ambuteiaj”.", mas: "<b>Și în plus:</b> hărți offline, cronometru de așteptare la rampă cu dovadă PDF, cheltuieli, bonuri și CMR, și canal de voce cu șoferii din zona ta.", c1: "Rute cu limite de înălțime și taxe", c2: "Ghidare cu benzi și radare", c3: "Tahograful și pauzele tale", c4: "Parcări, rampe și alerte", c5: "Cheltuieli și acte pe lună", ePre: "Încearc-o gratuit", eH: "Doi pași și îl ai", eP: "E gratuit. Mai întâi te înscrii ca tester, apoi o instalezi din Google Play. Durează două minute.", p1t: "Intră în grupul de testeri", p1: "Folosește același cont Gmail ca în Play Store și apasă butonul „Alătură-te grupului” de sus. Dacă scrie „Nu ai permisiunea”, e normal: apasă oricum „Alătură-te grupului”.", p1b: "Deschide grupul", p2t: "Devino tester și instaleaz-o", p2: "Deschide acest link și apasă „Devino tester” („Become a tester”). Când scrie „Ești tester” („You are a tester”), apasă linkul albastru „Descarcă de pe Google Play” („download it on Google Play”) și instaleaz-o.", p2b: "Devino tester", nota: "Dacă Google Play spune că aplicația nu e disponibilă sau nu te lasă s-o descarci, e normal la început: Google are nevoie de puțin timp să-ți dea acces (uneori câteva ore). Așteaptă și deschide din nou linkul de la pasul 2; nu trebuie să repeți pasul 1.", cod: "Când te înregistrezi în aplicație, la „Cod de invitație sau beta”, pune acest cod. Imediat ce ești verificat ca șofer, primești 500 de puncte, pe lângă cele 1.250 de bun venit:", canje: "Punctele vor putea fi folosite la benzinăriile, cafenelele și parcările partenere când vor veni.", copiar: "Copiază", copiado: "Copiat", bH: "E o versiune beta: ceva o să meargă prost", bP: "O testăm pe drum cu șoferi adevărați. Cel mai mult ne ajută să ne spui, direct din aplicație:", b1: "Unde te-a trimis o rută pe unde nu încape un camion.", b2: "Ce i-ai spus vocii și n-a înțeles.", b3: "Câtă baterie a consumat într-o cursă.", qPre: "Întrebări", qH: "Ce se întreabă des", q1: "Cât costă?", a1: "Nimic. E gratuit.", q2: "Există pentru iPhone?", a2: "Încă nu. Deocamdată doar pentru Android.", q3: "Merge și în afara Spaniei?", a3: "Da. Calculează rute în toată Europa, iar aplicația e în peste 30 de limbi.", q4: "Consumă multă baterie?", a4: "Economisește bateria când camionul stă. Pe curse lungi, ține-l la încărcat ca orice GPS.", q5: "Ce faceți cu datele mele?", a5: "Locația ta e folosită ca să te ghidăm și nu păstrăm traseele tale pe serverele noastre. Totul e în <a href=\"privacidad.html\">politica de confidențialitate</a>.", l1: "Confidențialitate", l2: "Termeni", l3: "Puncte și cupoane", l4: "Condiții pentru parteneri", l5: "Șterge contul", l6: "Am o benzinărie sau o parcare", contacto: "Contact", altHero: "Ecran TruckerPass GPS cu o rută pentru camion" },
+    pl: { tag: "Za darmo · Android", h1: "GPS, który wie, że jeździsz <em>ciężarówką</em>", sub: "Trasy według wysokości, masy i ADR, przerwy z tachografu, najtańszy diesel na trasie i ostrzeżenia od kierowców. Zrobione z kierowcami, dla kierowców.", cta: "Chcę wypróbować za darmo", cta2: "Co potrafi", d1: "Cała Europa", d2: "Ponad 30 języków", d3: "Za darmo", kmTitle: "Przerwa za 2 h 10", kmSub: "MOP Fraga · strzeżony", fPre: "Co potrafi", fH: "Wszystko, czego nie wie GPS do auta", f1t: "Trasy dla Twojej ciężarówki", f1: "Wyznacza trasę według wysokości, masy, długości i ADR Twojej ciężarówki. Pokazuje 2 lub 3 trasy z km, czasem i opłatami i sprawdza każdy wiadukt.", f2t: "Przerwy z tachografem", f2: "Mówi, kiedy wypada przerwa 45 minut i odpoczynek, i na którym parkingu stanąć, żeby zdążyć.", f3t: "Najtańszy diesel", f3: "Ceny w Hiszpanii, Francji, Portugalii i Austrii z Twoimi kartami (DKV, UTA, AS24…). Mówi, gdzie zatankować i ile oszczędzasz.", f4t: "Ostrzeżenia od kierowców", f4: "Wypadki, roboty drogowe, korki, kolejki na granicy i pełne parkingi, od zweryfikowanych kierowców, z drogą i miejscem.", f5t: "Zagrożenia przed wyjazdem", f5: "Przełęcze, tunele, długie zjazdy, fotoradary, pasy awaryjnego hamowania i strefy niskiej emisji na całej trasie, w jednej liście.", f6t: "Mówi i słucha", f6: "Nawigacja głosowa także przy wyłączonym ekranie. Mówisz do niej bez dotykania telefonu: „zawieź mnie do Lyonu”, „jest korek”.", mas: "<b>A także:</b> mapy offline, licznik czasu oczekiwania na rampie z potwierdzeniem PDF, wydatki, paragony i CMR oraz kanał głosowy z kierowcami w okolicy.", c1: "Trasy z wiaduktami i opłatami", c2: "Nawigacja z pasami i fotoradarami", c3: "Twój tachograf i przerwy", c4: "Parkingi, rampy i ostrzeżenia", c5: "Wydatki i dokumenty z miesiąca", ePre: "Wypróbuj za darmo", eH: "Dwa kroki i gotowe", eP: "Jest za darmo. Najpierw zapisujesz się jako tester, potem instalujesz z Google Play. Zajmuje to dwie minuty.", p1t: "Dołącz do grupy testerów", p1: "Użyj tego samego konta Gmail co w Sklepie Play i naciśnij przycisk „Dołącz do grupy” na górze. Jeśli pojawi się „Nie masz uprawnień”, to normalne: i tak naciśnij „Dołącz do grupy”.", p1b: "Otwórz grupę", p2t: "Zostań testerem i zainstaluj", p2: "Otwórz ten link i naciśnij „Zostań testerem” („Become a tester”). Gdy pojawi się „Jesteś testerem” („You are a tester”), naciśnij niebieski link „Pobierz z Google Play” („download it on Google Play”) i zainstaluj.", p2b: "Zostań testerem", nota: "Jeśli Google Play napisze, że aplikacja jest niedostępna albo nie pozwala jej pobrać, to normalne na początku: Google potrzebuje chwili, żeby dać Ci dostęp (czasem kilka godzin). Odczekaj i otwórz ponownie link z kroku 2; nie trzeba powtarzać kroku 1.", cod: "Przy rejestracji w aplikacji wpisz ten kod w polu „Kod zaproszenia lub bety”. Gdy tylko zweryfikujemy Cię jako kierowcę, dostaniesz 500 punktów, oprócz 1250 punktów powitalnych:", canje: "Punkty będzie można wymienić na stacjach, w kawiarniach i na parkingach partnerów, gdy do nas dołączą.", copiar: "Kopiuj", copiado: "Skopiowano", bH: "To beta: coś się zepsuje", bP: "Testujemy ją w trasie z prawdziwymi kierowcami. Najbardziej pomoże nam, jeśli napiszesz w aplikacji:", b1: "Gdzie trasa wysłała Cię tam, gdzie ciężarówka się nie mieści.", b2: "Co powiedziałeś do asystenta, a on nie zrozumiał.", b3: "Ile baterii zużyła w trasie.", qPre: "Pytania", qH: "O co najczęściej pytacie", q1: "Ile to kosztuje?", a1: "Nic. Jest za darmo.", q2: "Czy jest na iPhone'a?", a2: "Jeszcze nie. Na razie tylko na Androida.", q3: "Działa poza Hiszpanią?", a3: "Tak. Wyznacza trasy w całej Europie, a aplikacja jest w ponad 30 językach.", q4: "Czy zużywa dużo baterii?", a4: "Oszczędza baterię, gdy ciężarówka stoi. W długich trasach trzymaj telefon na ładowarce, jak przy każdym GPS.", q5: "Co robicie z moimi danymi?", a5: "Twoja lokalizacja służy do nawigacji i nie przechowujemy Twoich tras na naszych serwerach. Wszystko jest w <a href=\"privacidad.html\">polityce prywatności</a>.", l1: "Prywatność", l2: "Regulamin", l3: "Punkty i kupony", l4: "Warunki dla partnerów", l5: "Usuń konto", l6: "Mam stację lub parking", contacto: "Kontakt", altHero: "Ekran TruckerPass GPS z trasą dla ciężarówki" }
+  };
+  var ES = {};
+  document.querySelectorAll('[data-i]').forEach(function (el) { ES[el.getAttribute('data-i')] = el.innerHTML; });
+  var img = document.querySelector('[data-ialt]'); if (img) ES.altHero = img.getAttribute('alt');
+  ES.copiado = 'Copiado';
+  var cur = 'es';
+  function apply(lang) {
+    var d = lang === 'es' ? ES : Object.assign({}, ES, T[lang] || {});
+    cur = T[lang] ? lang : 'es';
+    document.querySelectorAll('[data-i]').forEach(function (el) { var k = el.getAttribute('data-i'); if (d[k] != null) el.innerHTML = d[k]; });
+    if (img) img.setAttribute('alt', d.altHero);
+    document.documentElement.lang = cur;
+    document.querySelectorAll('.idiomas button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === cur)); });
+    try { localStorage.setItem('tp-lang', cur); } catch (e) {}
+  }
+  document.querySelectorAll('.idiomas button').forEach(function (b) { b.addEventListener('click', function () { apply(b.getAttribute('data-lang')); }); });
+  var saved = null; try { saved = localStorage.getItem('tp-lang'); } catch (e) {}
+  var nav = (navigator.language || 'es').slice(0, 2).toLowerCase();
+  var q = (location.hash || '').replace('#', '');
+  apply(T[q] ? q : saved || (T[nav] ? nav : 'es'));
+  // El código de la beta según de dónde viene (truckerpassgps.pages.dev/?c=FACEBOOK): así se sabe qué funciona
+  try { var cq = (new URLSearchParams(location.search).get('c') || '').toUpperCase().replace(/[^A-Z]/g, ''); if (['WEB', 'FACEBOOK', 'INSTAGRAM', 'TIKTOK'].indexOf(cq) >= 0) document.getElementById('codigo').textContent = cq; } catch (e) {}
+  var btn = document.getElementById('copiar');
+  btn.addEventListener('click', function () {
+    var code = document.getElementById('codigo').textContent;
+    var done = function () { var d = cur === 'es' ? ES : T[cur]; btn.textContent = d.copiado; setTimeout(function () { btn.textContent = (cur === 'es' ? ES : T[cur]).copiar; }, 1800); };
+    try { navigator.clipboard.writeText(code).then(done, function () { selectCode(); }); } catch (e) { selectCode(); }
+  });
+  function selectCode() { var r = document.createRange(); r.selectNodeContents(document.getElementById('codigo')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+})();
+</script>
+
+</body>
+</html>
