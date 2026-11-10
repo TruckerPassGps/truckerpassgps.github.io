@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>Revisar señales · TruckerPass</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
 :root{--bg:#0b1120;--card:#111827;--line:#1f2937;--txt:#e5e7eb;--muted:#94a3b8;--sky:#38bdf8;--gold:#f0b429;--green:#15803d;--red:#7f1d1d}
@@ -26,6 +28,9 @@ input{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid #334155
 #tabs a{color:var(--sky);font-weight:700;text-decoration:none;padding:8px 6px;font-size:14px}
 #view{flex:1;border-radius:14px;overflow:hidden;background:#000;border:2px solid var(--line)}
 #view iframe{border:0;width:100%;height:100%}
+#lmap{width:100%;height:100%}
+#moved{display:none;background:#3b2a06;color:#fde68a;border-radius:10px;padding:8px 10px;font-size:13.5px}
+#moved button{background:#475569;padding:4px 10px;font-size:13px;margin-left:6px;border-radius:8px}
 #right{background:var(--card);border-left:1px solid var(--line);padding:16px;overflow:auto;display:flex;flex-direction:column;gap:12px}
 .top{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px}
 #q{font-size:22px;font-weight:800;display:flex;align-items:center;gap:10px}
@@ -61,7 +66,7 @@ kbd{position:absolute;top:4px;left:7px;font:700 11px/1 system-ui;color:#bbf7d0;o
     <div id="tabs">
       <button data-v="sv" class="on">Street View</button>
       <button data-v="mly" id="tabMly">Foto Mapillary</button>
-      <button data-v="map">Mapa</button>
+      <button data-v="map">📍 Mapa (mover pin) <span style="opacity:.7;font-size:12px">M</span></button>
       <span class="sp"></span>
       <a id="lnkG" target="_blank" rel="noopener">Abrir en Google Maps ↗</a>
       <a id="lnkM" target="_blank" rel="noopener">Abrir en Mapillary ↗</a>
@@ -73,6 +78,7 @@ kbd{position:absolute;top:4px;left:7px;font:700 11px/1 system-ui;color:#bbf7d0;o
     <div id="card">
       <div id="q"><span class="dot"></span><span id="qt"></span></div>
       <div id="where"></div>
+      <div id="moved" style="margin-top:8px">📍 Pin movido a otro sitio: se guardará ahí. <button id="unmove">Volver al original</button></div>
     </div>
     <div style="color:var(--muted);font-size:13px">Pulsa la medida que pone la señal:</div>
     <div id="presets"></div>
@@ -83,7 +89,7 @@ kbd{position:absolute;top:4px;left:7px;font:700 11px/1 system-ui;color:#bbf7d0;o
     </div>
     <div id="msg"></div>
     <div id="done"><div style="font-size:40px">✅</div><b>¡Terminado!</b><p id="doneTxt" style="color:var(--muted)"></p><button id="reload" style="background:#1d4ed8;padding:10px 16px;font-weight:800">Cargar más</button></div>
-    <div class="help"><b>Teclado:</b> 1–9 = medida · <b>0</b> = otra · <b>N</b> = no es · <b>Espacio</b> = saltar · <b>←</b> = volver a la anterior (si la saltaste)<br>
+    <div class="help"><b>Teclado:</b> 1–9 = medida · <b>0</b> = otra · <b>N</b> = no es · <b>Espacio</b> = saltar · <b>←</b> = volver a la anterior · <b>M</b> = mapa / Street View<br>Si la señal está mal puesta, en <b>Mapa</b> arrastra el pin (o pincha) donde está de verdad y luego elige la medida.<br>
       Al guardar vale al momento para todos, como en la app.</div>
   </div>
 </div>
@@ -142,7 +148,7 @@ async function load() {
 
 function svUrl(g) {
   var h = g.heading != null && isFinite(+g.heading) ? Math.round((+g.heading + 180) % 360) : 0;
-  return 'https://maps.google.com/maps?layer=c&cbll=' + g.lat + ',' + g.lng + '&cbp=11,' + h + ',0,0,5&output=svembed';
+  return 'https://maps.google.com/maps?layer=c&cbll=' + pos(g)[0] + ',' + pos(g)[1] + '&cbp=11,' + h + ',0,0,5&output=svembed';
 }
 function mapUrl(g) {
   var d = 0.0025;
@@ -153,8 +159,31 @@ function renderView() {
   if (view === 'mly' && !g.image_id) view = 'sv';
   document.querySelectorAll('#tabs button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === view); });
   $('tabMly').style.display = g.image_id ? '' : 'none';
-  var src = view === 'map' ? mapUrl(g) : view === 'mly' ? 'https://www.mapillary.com/embed?image_key=' + encodeURIComponent(g.image_id) + '&style=photo' : svUrl(g);
+  if (view === 'map') { renderMap(g); return; }
+  if (lmap) { lmap.remove(); lmap = null; }
+  var src = view === 'mly' ? 'https://www.mapillary.com/embed?image_key=' + encodeURIComponent(g.image_id) + '&style=photo' : svUrl(g);
   $('view').innerHTML = '<iframe allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="' + src + '"></iframe>';
+}
+
+var lmap = null, lmark = null;
+try { L.Icon.Default.imagePath = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/'; } catch (e) {}
+function pos(g) { return g.mlat != null ? [g.mlat, g.mlng] : [g.lat, g.lng]; }
+function renderMap(g) {
+  if (lmap) { lmap.remove(); lmap = null; }
+  $('view').innerHTML = '<div id="lmap"></div>';
+  lmap = L.map('lmap').setView(pos(g), 18);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(lmap);
+  L.circleMarker([g.lat, g.lng], { radius: 6, color: '#94a3b8', weight: 2, fillOpacity: 0.3 }).addTo(lmap).bindTooltip('Donde la puso Mapillary');
+  lmark = L.marker(pos(g), { draggable: true }).addTo(lmap).bindTooltip('Arrástrame o pincha en el mapa', { permanent: false });
+  var move = function (ll) { g.mlat = +ll.lat.toFixed(6); g.mlng = +ll.lng.toFixed(6); lmark.setLatLng(ll); showMoved(g); };
+  lmark.on('dragend', function () { move(lmark.getLatLng()); });
+  lmap.on('click', function (e) { move(e.latlng); });
+}
+function showMoved(g) {
+  var m = g.mlat != null;
+  $('moved').style.display = m ? 'block' : 'none';
+  var p = pos(g);
+  $('where').textContent = p[0].toFixed(5) + ', ' + p[1].toFixed(5);
 }
 
 function show() {
@@ -162,6 +191,7 @@ function show() {
   $('msg').textContent = '';
   $('other').style.display = 'none';
   if (!g) {
+    if (lmap) { lmap.remove(); lmap = null; }
     $('card').style.display = 'none'; $('presets').innerHTML = ''; $('view').innerHTML = '';
     $('done').style.display = 'block';
     $('doneTxt').textContent = 'Has guardado o descartado ' + doneCount + ' señales en esta sesión. Las que saltaste siguen pendientes.';
@@ -172,7 +202,7 @@ function show() {
   $('count').textContent = (i + 1) + ' de ' + groups.length + (inSpain(g) ? ' · 🇪🇸' : '') + (g.ids.length > 1 ? ' · ' + g.ids.length + ' fotos' : '');
   $('qt').textContent = TYPE_ES[g.kind] || g.kind;
   document.querySelector('#q .dot').style.background = COLOR[g.kind] || '#64748b';
-  $('where').textContent = g.lat.toFixed(5) + ', ' + g.lng.toFixed(5);
+  showMoved(g);
   var unit = g.kind === 'weight' || g.kind === 'axle' ? 't' : 'm';
   var p = PRESETS[g.kind] || [];
   $('presets').innerHTML = p.map(function (v, k) { return '<button data-v="' + v + '"><kbd>' + (k + 1) + '</kbd>' + fmt(v) + ' ' + unit + '</button>'; }).join('')
@@ -188,7 +218,7 @@ async function save(v) {
   var g = groups[i]; if (!g || busy) return;
   setBusy(true); $('msg').textContent = 'Guardando…';
   try {
-    await call('admin_add_official_restriction', { p_type: g.kind, p_value: v, p_lat: g.lat, p_lng: g.lng, p_note: 'Mapillary (revisión en el ordenador)' });
+    await call('admin_add_official_restriction', { p_type: g.kind, p_value: v, p_lat: pos(g)[0], p_lng: pos(g)[1], p_note: 'Mapillary (revisión en el ordenador)' + (g.mlat != null ? ' · pin corregido' : '') });
     await markAll(g, 'done');
     doneCount++; groups.splice(i, 1); show();
   } catch (e) { $('msg').textContent = 'No se pudo guardar: ' + e.message; }
@@ -216,6 +246,7 @@ $('presets').addEventListener('click', function (e) {
   var b = e.target.closest('button'); if (!b) return;
   if (b.dataset.o) askOther(); else save(+b.dataset.v);
 });
+$('unmove').onclick = function () { var g = groups[i]; if (!g) return; delete g.mlat; delete g.mlng; showMoved(g); renderView(); };
 $('no').onclick = dismiss; $('skip').onclick = skip;
 $('otherOk').onclick = saveOther;
 $('otherVal').addEventListener('keydown', function (e) { if (e.key === 'Enter') saveOther(); if (e.key === 'Escape') $('other').style.display = 'none'; e.stopPropagation(); });
@@ -229,6 +260,7 @@ document.addEventListener('keydown', function (e) {
   else if (e.key === '0') { e.preventDefault(); askOther(); }
   else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); dismiss(); }
   else if (e.key === ' ') { e.preventDefault(); skip(); }
+  else if (e.key === 'm' || e.key === 'M') { e.preventDefault(); view = view === 'map' ? 'sv' : 'map'; renderView(); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); back(); }
   else if (e.key === 'ArrowRight') { e.preventDefault(); skip(); }
 });
