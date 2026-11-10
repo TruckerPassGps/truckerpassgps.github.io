@@ -29,6 +29,12 @@ input{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid #334155
 #view{flex:1;border-radius:14px;overflow:hidden;background:#000;border:2px solid var(--line)}
 #view iframe{border:0;width:100%;height:100%}
 #lmap{width:100%;height:100%}
+#zoomBox{position:relative;width:100%;height:100%;overflow:hidden;cursor:grab;background:#000;touch-action:none}
+#zoomBox.drag{cursor:grabbing}
+#zoomBox img{position:absolute;left:0;top:0;transform-origin:0 0;user-select:none;-webkit-user-drag:none;max-width:none}
+#zoomBtns{position:absolute;right:10px;bottom:10px;display:flex;gap:6px;z-index:2}
+#zoomBtns button{background:#000a;border:1px solid #fff4;width:40px;height:40px;font-size:20px;font-weight:800;border-radius:10px}
+#zoomHint{position:absolute;left:10px;bottom:10px;background:#000a;color:#e5e7eb;font-size:12.5px;padding:5px 9px;border-radius:8px;z-index:2}
 #moved{display:none;background:#3b2a06;color:#fde68a;border-radius:10px;padding:8px 10px;font-size:13.5px}
 #moved button{background:#475569;padding:4px 10px;font-size:13px;margin-left:6px;border-radius:8px}
 #right{background:var(--card);border-left:1px solid var(--line);padding:16px;overflow:auto;display:flex;flex-direction:column;gap:12px}
@@ -64,8 +70,9 @@ kbd{position:absolute;top:4px;left:7px;font:700 11px/1 system-ui;color:#bbf7d0;o
 <div id="app">
   <div id="left">
     <div id="tabs">
+      <button data-v="foto" id="tabFoto">🔍 Foto (zoom)</button>
+      <button data-v="mly" id="tabMly">Mapillary 360°</button>
       <button data-v="sv" class="on">Street View</button>
-      <button data-v="mly" id="tabMly">Foto Mapillary</button>
       <button data-v="map">📍 Mapa (mover pin) <span style="opacity:.7;font-size:12px">M</span></button>
       <span class="sp"></span>
       <a id="lnkG" target="_blank" rel="noopener">Abrir en Google Maps ↗</a>
@@ -156,14 +163,48 @@ function mapUrl(g) {
 }
 function renderView() {
   var g = groups[i]; if (!g) { $('view').innerHTML = ''; return; }
+  if (view === 'foto' && !g.thumb_url) view = g.image_id ? 'mly' : 'sv';
   if (view === 'mly' && !g.image_id) view = 'sv';
   document.querySelectorAll('#tabs button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === view); });
   $('tabMly').style.display = g.image_id ? '' : 'none';
+  $('tabFoto').style.display = g.thumb_url ? '' : 'none';
   if (view === 'map') { renderMap(g); return; }
   if (lmap) { lmap.remove(); lmap = null; }
+  if (view === 'foto') { renderZoom(g); return; }
   var src = view === 'mly' ? 'https://www.mapillary.com/embed?image_key=' + encodeURIComponent(g.image_id) + '&style=photo' : svUrl(g);
   $('view').innerHTML = '<iframe allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="' + src + '"></iframe>';
 }
+
+// Foto con zoom: rueda del ratón = zoom donde está el puntero · arrastrar = moverla · doble clic = acercar
+var zs = null;
+function renderZoom(g) {
+  $('view').innerHTML = '<div id="zoomBox"><img id="zimg" alt=""><div id="zoomBtns"><button id="zIn" title="Acercar (+)">+</button><button id="zOut" title="Alejar (−)">−</button><button id="zFit" title="Ver entera">⟲</button></div><div id="zoomHint">Rueda = zoom · arrastra para mover · doble clic = acercar</div></div>';
+  var box = $('zoomBox'), img = $('zimg');
+  zs = { s: 1, x: 0, y: 0, min: 1 };
+  var apply = function () { img.style.transform = 'translate(' + zs.x + 'px,' + zs.y + 'px) scale(' + zs.s + ')'; };
+  var fit = function () {
+    var bw = box.clientWidth, bh = box.clientHeight, iw = img.naturalWidth || 1, ih = img.naturalHeight || 1;
+    zs.min = Math.min(bw / iw, bh / ih); zs.s = zs.min; zs.x = (bw - iw * zs.s) / 2; zs.y = (bh - ih * zs.s) / 2; apply();
+  };
+  var zoomAt = function (f, cx, cy) {
+    var ns = Math.max(zs.min, Math.min(zs.min * 12, zs.s * f));
+    zs.x = cx - (cx - zs.x) * (ns / zs.s); zs.y = cy - (cy - zs.y) * (ns / zs.s); zs.s = ns; apply();
+  };
+  zs.zoomAt = zoomAt; zs.fit = fit; zs.box = box;
+  img.onload = fit;
+  img.onerror = function () { $('view').innerHTML = '<div style="padding:20px;color:#fca5a5">No se pudo cargar la foto (el enlace caduca y se renueva cada noche). Mira «Mapillary 360°» o «Street View».</div>'; };
+  img.src = g.thumb_url;
+  box.addEventListener('wheel', function (e) { e.preventDefault(); var r = box.getBoundingClientRect(); zoomAt(e.deltaY < 0 ? 1.25 : 0.8, e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+  box.addEventListener('dblclick', function (e) { var r = box.getBoundingClientRect(); zoomAt(2, e.clientX - r.left, e.clientY - r.top); });
+  var d = null;
+  box.addEventListener('pointerdown', function (e) { if (e.target.tagName === 'BUTTON') return; d = { x: e.clientX - zs.x, y: e.clientY - zs.y }; box.classList.add('drag'); box.setPointerCapture(e.pointerId); });
+  box.addEventListener('pointermove', function (e) { if (!d) return; zs.x = e.clientX - d.x; zs.y = e.clientY - d.y; apply(); });
+  box.addEventListener('pointerup', function () { d = null; box.classList.remove('drag'); });
+  $('zIn').onclick = function () { zoomAt(1.5, box.clientWidth / 2, box.clientHeight / 2); };
+  $('zOut').onclick = function () { zoomAt(1 / 1.5, box.clientWidth / 2, box.clientHeight / 2); };
+  $('zFit').onclick = fit;
+}
+window.addEventListener('resize', function () { if (view === 'foto' && zs && zs.fit && document.getElementById('zimg')) zs.fit(); });
 
 var lmap = null, lmark = null;
 try { L.Icon.Default.imagePath = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/'; } catch (e) {}
@@ -199,7 +240,7 @@ function show() {
     return;
   }
   $('card').style.display = '';
-  if (g._shown !== true) { g._shown = true; view = g.image_id ? 'mly' : 'sv'; }
+  if (g._shown !== true) { g._shown = true; view = g.thumb_url ? 'foto' : g.image_id ? 'mly' : 'sv'; }
   $('count').textContent = (i + 1) + ' de ' + groups.length + (inSpain(g) ? ' · 🇪🇸' : '') + (g.ids.length > 1 ? ' · ' + g.ids.length + ' fotos' : '');
   $('qt').textContent = TYPE_ES[g.kind] || g.kind;
   document.querySelector('#q .dot').style.background = COLOR[g.kind] || '#64748b';
@@ -261,6 +302,7 @@ document.addEventListener('keydown', function (e) {
   else if (e.key === '0') { e.preventDefault(); askOther(); }
   else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); dismiss(); }
   else if (e.key === ' ') { e.preventDefault(); skip(); }
+  else if ((e.key === '+' || e.key === '-') && view === 'foto' && zs && zs.box) { e.preventDefault(); zs.zoomAt(e.key === '+' ? 1.5 : 1 / 1.5, zs.box.clientWidth / 2, zs.box.clientHeight / 2); }
   else if (e.key === 'm' || e.key === 'M') { e.preventDefault(); view = view === 'map' ? 'sv' : 'map'; renderView(); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); back(); }
   else if (e.key === 'ArrowRight') { e.preventDefault(); skip(); }
