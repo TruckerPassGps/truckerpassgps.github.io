@@ -29,7 +29,9 @@ input{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid #334155
 #view{flex:1;border-radius:14px;overflow:hidden;background:#000;border:2px solid var(--line)}
 #view iframe{border:0;width:100%;height:100%}
 #lmap{width:100%;height:100%}
-#zoomBox{position:relative;width:100%;height:100%;overflow:hidden;cursor:grab;background:#000;touch-action:none}
+#split{display:flex;width:100%;height:100%;gap:2px;background:#000}
+#split #lmap{flex:2;height:100%}
+#zoomBox{flex:3;position:relative;width:100%;height:100%;overflow:hidden;cursor:grab;background:#000;touch-action:none}
 #zoomBox.drag{cursor:grabbing}
 #zoomBox img{position:absolute;left:0;top:0;transform-origin:0 0;user-select:none;-webkit-user-drag:none;max-width:none}
 #zoomBtns{position:absolute;right:10px;bottom:10px;display:flex;gap:6px;z-index:2}
@@ -54,7 +56,7 @@ kbd{position:absolute;top:4px;left:7px;font:700 11px/1 system-ui;color:#bbf7d0;o
 .help{color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);padding-top:10px;margin-top:auto}
 .help b{color:var(--txt)}
 #done{display:none;text-align:center;padding:30px 10px}
-@media (max-width:900px){#app{grid-template-columns:1fr;grid-template-rows:55vh auto}#right{border-left:0}}
+@media (max-width:900px){#split{flex-direction:column}#split #lmap{height:40%;flex:none}#app{grid-template-columns:1fr;grid-template-rows:55vh auto}#right{border-left:0}}
 </style>
 </head>
 <body>
@@ -96,7 +98,7 @@ kbd{position:absolute;top:4px;left:7px;font:700 11px/1 system-ui;color:#bbf7d0;o
     </div>
     <div id="msg"></div>
     <div id="done"><div style="font-size:40px">✅</div><b>¡Terminado!</b><p id="doneTxt" style="color:var(--muted)"></p><button id="reload" style="background:#1d4ed8;padding:10px 16px;font-weight:800">Cargar más</button></div>
-    <div class="help"><b>Teclado:</b> 1–9 = medida · <b>0</b> = otra · <b>N</b> = no es · <b>Espacio</b> = saltar · <b>←</b> = volver a la anterior · <b>M</b> = mapa / Street View<br>Si la señal está mal puesta, en <b>Mapa</b> arrastra el pin (o pincha) donde está de verdad y luego elige la medida.<br>
+    <div class="help"><b>Teclado:</b> 1–9 = medida · <b>0</b> = otra · <b>N</b> = no es · <b>Espacio</b> = saltar · <b>←</b> = volver a la anterior · <b>M</b> = mapa / Street View<br>A la derecha de la foto, el mapa: la <b style="color:#f0b429">flecha amarilla</b> es la calle y el sentido de los camiones que ven la señal. Si el pin está en otra calle, arrástralo (o pincha) donde está de verdad y luego elige la medida.<br>
       Al guardar vale al momento para todos, como en la app.</div>
   </div>
 </div>
@@ -178,7 +180,8 @@ function renderView() {
 // Foto con zoom: rueda del ratón = zoom donde está el puntero · arrastrar = moverla · doble clic = acercar
 var zs = null;
 function renderZoom(g) {
-  $('view').innerHTML = '<div id="zoomBox"><img id="zimg" alt=""><div id="zoomBtns"><button id="zIn" title="Acercar (+)">+</button><button id="zOut" title="Alejar (−)">−</button><button id="zFit" title="Ver entera">⟲</button></div><div id="zoomHint">Rueda = zoom · arrastra para mover · doble clic = acercar</div></div>';
+  $('view').innerHTML = '<div id="split"><div id="zoomBox"><img id="zimg" alt=""><div id="zoomBtns"><button id="zIn" title="Acercar (+)">+</button><button id="zOut" title="Alejar (−)">−</button><button id="zFit" title="Ver entera">⟲</button></div><div id="zoomHint">Rueda = zoom · arrastra para mover · doble clic = acercar</div></div><div id="lmap"></div></div>';
+  try { renderMap(g, true); } catch (e) {}
   var box = $('zoomBox'), img = $('zimg');
   zs = { s: 1, x: 0, y: 0, min: 1 };
   var apply = function () { img.style.transform = 'translate(' + zs.x + 'px,' + zs.y + 'px) scale(' + zs.s + ')'; };
@@ -209,9 +212,9 @@ window.addEventListener('resize', function () { if (view === 'foto' && zs && zs.
 var lmap = null, lmark = null;
 try { L.Icon.Default.imagePath = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/'; } catch (e) {}
 function pos(g) { return g.mlat != null ? [g.mlat, g.mlng] : [g.lat, g.lng]; }
-function renderMap(g) {
+function renderMap(g, inside) {
   if (lmap) { lmap.remove(); lmap = null; }
-  $('view').innerHTML = '<div id="lmap"></div>';
+  if (!inside) $('view').innerHTML = '<div id="lmap"></div>';
   lmap = L.map('lmap').setView(pos(g), 18);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(lmap);
   L.circleMarker([g.lat, g.lng], { radius: 6, color: '#94a3b8', weight: 2, fillOpacity: 0.3 }).addTo(lmap).bindTooltip('Donde la puso Mapillary');
@@ -219,6 +222,15 @@ function renderMap(g) {
   var move = function (ll) { g.mlat = +ll.lat.toFixed(6); g.mlng = +ll.lng.toFixed(6); lmark.setLatLng(ll); showMoved(g); };
   lmark.on('dragend', function () { move(lmark.getLatLng()); });
   lmap.on('click', function (e) { move(e.latlng); });
+  // Flecha: hacia dónde van los vehículos que ven la señal (la señal mira hacia ellos)
+  if (g.heading != null && isFinite(+g.heading)) {
+    var b = ((+g.heading + 180) % 360) * Math.PI / 180, p0 = pos(g), m = 1 / 111200, k = Math.cos(p0[0] * Math.PI / 180);
+    var at = function (d, db) { var a = b + (db || 0); return [p0[0] - Math.cos(a) * d * m, p0[1] - Math.sin(a) * d * m / k]; };
+    var tip = [p0[0], p0[1]];
+    L.polyline([at(45), tip], { color: '#f0b429', weight: 6, opacity: 0.95 }).addTo(lmap)
+      .bindTooltip('Los camiones que ven la señal vienen por aquí, en esta dirección');
+    L.polygon([tip, at(12, 0.45), at(12, -0.45)], { color: '#f0b429', fillColor: '#f0b429', fillOpacity: 1, weight: 1 }).addTo(lmap);
+  }
 }
 function showMoved(g) {
   var m = g.mlat != null;
