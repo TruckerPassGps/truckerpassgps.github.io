@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Revisar señales · TruckerPass</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--bg:#0b1120;--card:#111827;--line:#1f2937;--txt:#e5e7eb;--muted:#94a3b8;--sky:#38bdf8;--gold:#f0b429;--green:#15803d;--red:#7f1d1d}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+button{font:inherit;cursor:pointer;border:0;border-radius:12px;color:#fff}
+button:disabled{opacity:.5;cursor:default}
+input{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:#fff}
+#login{max-width:420px;margin:12vh auto;padding:24px;background:var(--card);border-radius:16px;display:none}
+#login h1{font-size:20px;margin:0 0 6px}
+#login p{color:var(--muted);margin:0 0 14px}
+#login input{width:100%;margin-bottom:10px}
+#app{display:none;height:100%;grid-template-columns:1fr 400px}
+#left{display:flex;flex-direction:column;min-width:0;padding:12px;gap:8px}
+#tabs{display:flex;gap:6px}
+#tabs button{background:#1f2937;padding:8px 14px;font-weight:700;font-size:14px}
+#tabs button.on{background:#1d4ed8}
+#tabs .sp{flex:1}
+#tabs a{color:var(--sky);font-weight:700;text-decoration:none;padding:8px 6px;font-size:14px}
+#view{flex:1;border-radius:14px;overflow:hidden;background:#000;border:2px solid var(--line)}
+#view iframe{border:0;width:100%;height:100%}
+#right{background:var(--card);border-left:1px solid var(--line);padding:16px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.top{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px}
+#q{font-size:22px;font-weight:800;display:flex;align-items:center;gap:10px}
+#q .dot{width:14px;height:14px;border-radius:50%;flex:none}
+#where{color:var(--muted);font-size:13px}
+#presets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+#presets button{background:var(--green);padding:14px 4px;font-size:18px;font-weight:800;position:relative}
+kbd{position:absolute;top:4px;left:7px;font:700 11px/1 system-ui;color:#bbf7d0;opacity:.85}
+.row{display:flex;gap:8px}
+.row button{flex:1;padding:14px 6px;font-weight:800;font-size:16px;position:relative}
+#other{display:none;gap:8px}
+#other input{flex:1;min-width:0}
+#other button{background:#1d4ed8;padding:0 16px;font-weight:800}
+#msg{min-height:20px;font-size:14px;color:var(--gold)}
+.help{color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);padding-top:10px;margin-top:auto}
+.help b{color:var(--txt)}
+#done{display:none;text-align:center;padding:30px 10px}
+@media (max-width:900px){#app{grid-template-columns:1fr;grid-template-rows:55vh auto}#right{border-left:0}}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <h1>🚧 Revisar señales (Mapillary)</h1>
+  <p>Solo para el administrador de TruckerPass. Escribe tu clave de administrador (la misma que en la app).</p>
+  <input id="key" type="password" autocomplete="current-password" placeholder="Clave de administrador">
+  <button id="enter" style="background:#1d4ed8;padding:12px;width:100%;font-weight:800">Entrar</button>
+  <div id="lmsg" style="color:#fca5a5;margin-top:10px;font-size:14px"></div>
+</div>
+
+<div id="app">
+  <div id="left">
+    <div id="tabs">
+      <button data-v="sv" class="on">Street View</button>
+      <button data-v="mly" id="tabMly">Foto Mapillary</button>
+      <button data-v="map">Mapa</button>
+      <span class="sp"></span>
+      <a id="lnkG" target="_blank" rel="noopener">Abrir en Google Maps ↗</a>
+      <a id="lnkM" target="_blank" rel="noopener">Abrir en Mapillary ↗</a>
+    </div>
+    <div id="view"></div>
+  </div>
+  <div id="right">
+    <div class="top"><span id="count">…</span><button id="out" style="background:none;color:var(--muted);padding:0;font-size:13px">Salir</button></div>
+    <div id="card">
+      <div id="q"><span class="dot"></span><span id="qt"></span></div>
+      <div id="where"></div>
+    </div>
+    <div style="color:var(--muted);font-size:13px">Pulsa la medida que pone la señal:</div>
+    <div id="presets"></div>
+    <div id="other"><input id="otherVal" inputmode="decimal" placeholder="Otra medida, p. ej. 4,1"><button id="otherOk">Guardar</button></div>
+    <div class="row">
+      <button id="no" style="background:var(--red)"><kbd style="color:#fecaca">N</kbd>✕ No es</button>
+      <button id="skip" style="background:#334155"><kbd style="color:#cbd5e1">Espacio</kbd>⏭ No se ve · saltar</button>
+    </div>
+    <div id="msg"></div>
+    <div id="done"><div style="font-size:40px">✅</div><b>¡Terminado!</b><p id="doneTxt" style="color:var(--muted)"></p><button id="reload" style="background:#1d4ed8;padding:10px 16px;font-weight:800">Cargar más</button></div>
+    <div class="help"><b>Teclado:</b> 1–9 = medida · <b>0</b> = otra · <b>N</b> = no es · <b>Espacio</b> = saltar · <b>←</b> = volver a la anterior (si la saltaste)<br>
+      Al guardar vale al momento para todos, como en la app.</div>
+  </div>
+</div>
+
+<script>
+var SUPABASE_URL = 'https://ybwsmemdajtcssxldflz.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_b_VnmzGJbUFHKkLgyLraDg__b6BsDOI';
+var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+var PRESETS = {
+  weight: [3.5, 5.5, 7.5, 10, 12, 16, 20, 26, 40], axle: [5, 6, 8, 10, 11.5, 13],
+  height: [3, 3.2, 3.5, 3.7, 3.8, 4, 4.2, 4.5], width: [2, 2.2, 2.3, 2.5, 3], length: [8, 10, 12, 16.5, 18.75]
+};
+var TYPE_ES = { height: '¿Altura máxima (gálibo)?', weight: '¿Peso máximo?', length: '¿Longitud máxima?', width: '¿Anchura máxima?', axle: '¿Peso por eje?' };
+var COLOR = { height: '#7c3aed', weight: '#0f766e', length: '#b45309', width: '#be185d', axle: '#0e7490' };
+var $ = function (id) { return document.getElementById(id); };
+var store = { get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set: function (k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
+
+var adminKey = store.get('tp_admin_key') || '';
+var groups = [], i = 0, view = 'sv', busy = false, doneCount = 0;
+
+function inSpain(m) { return m.lat > 35.9 && m.lat < 43.9 && m.lng > -9.6 && m.lng < 4.4; }
+function near(a, b) { return Math.hypot((a.lat - b.lat) * 111200, (a.lng - b.lng) * 111200 * Math.cos(a.lat * Math.PI / 180)) < 80; }
+function groupSigns(list) {
+  var out = [];
+  list.slice().sort(function (a, b) { return inSpain(b) - inSpain(a); }).forEach(function (m) {
+    m.lat = +m.lat; m.lng = +m.lng;
+    var g = out.find(function (x) { return x.kind === m.kind && near(x, m); });
+    if (g) { g.ids.push(m.id); if (!g.image_id && m.image_id) g.image_id = m.image_id; }
+    else { var c = Object.assign({}, m); c.ids = [m.id]; out.push(c); }
+  });
+  return out;
+}
+var fmt = function (v) { return String(v).replace('.', ','); };
+
+async function ensureSession() {
+  var s = await sb.auth.getSession();
+  if (s.data && s.data.session) return;
+  var r = await sb.auth.signInAnonymously();
+  if (r.error) throw r.error;
+}
+async function call(fn, args) {
+  var r = await sb.rpc(fn, Object.assign({ p_admin: adminKey }, args || {}));
+  if (r.error) throw new Error(r.error.message);
+  return r.data;
+}
+
+async function load() {
+  $('count').textContent = 'Cargando…';
+  var list = await call('admin_mapillary_signs', { p_status: 'new' });
+  groups = groupSigns(list || []); i = 0;
+  $('done').style.display = 'none';
+  show();
+}
+
+function svUrl(g) {
+  var h = g.heading != null && isFinite(+g.heading) ? Math.round((+g.heading + 180) % 360) : 0;
+  return 'https://maps.google.com/maps?layer=c&cbll=' + g.lat + ',' + g.lng + '&cbp=11,' + h + ',0,0,5&output=svembed';
+}
+function mapUrl(g) {
+  var d = 0.0025;
+  return 'https://www.openstreetmap.org/export/embed.html?bbox=' + (g.lng - d) + ',' + (g.lat - d * 0.7) + ',' + (g.lng + d) + ',' + (g.lat + d * 0.7) + '&layer=mapnik&marker=' + g.lat + ',' + g.lng;
+}
+function renderView() {
+  var g = groups[i]; if (!g) { $('view').innerHTML = ''; return; }
+  if (view === 'mly' && !g.image_id) view = 'sv';
+  document.querySelectorAll('#tabs button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === view); });
+  $('tabMly').style.display = g.image_id ? '' : 'none';
+  var src = view === 'map' ? mapUrl(g) : view === 'mly' ? 'https://www.mapillary.com/embed?image_key=' + encodeURIComponent(g.image_id) + '&style=photo' : svUrl(g);
+  $('view').innerHTML = '<iframe allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="' + src + '"></iframe>';
+}
+
+function show() {
+  var g = groups[i];
+  $('msg').textContent = '';
+  $('other').style.display = 'none';
+  if (!g) {
+    $('card').style.display = 'none'; $('presets').innerHTML = ''; $('view').innerHTML = '';
+    $('done').style.display = 'block';
+    $('doneTxt').textContent = 'Has guardado o descartado ' + doneCount + ' señales en esta sesión. Las que saltaste siguen pendientes.';
+    $('count').textContent = groups.length ? 'Fin de la lista' : 'No hay señales por revisar';
+    return;
+  }
+  $('card').style.display = '';
+  $('count').textContent = (i + 1) + ' de ' + groups.length + (inSpain(g) ? ' · 🇪🇸' : '') + (g.ids.length > 1 ? ' · ' + g.ids.length + ' fotos' : '');
+  $('qt').textContent = TYPE_ES[g.kind] || g.kind;
+  document.querySelector('#q .dot').style.background = COLOR[g.kind] || '#64748b';
+  $('where').textContent = g.lat.toFixed(5) + ', ' + g.lng.toFixed(5);
+  var unit = g.kind === 'weight' || g.kind === 'axle' ? 't' : 'm';
+  var p = PRESETS[g.kind] || [];
+  $('presets').innerHTML = p.map(function (v, k) { return '<button data-v="' + v + '"><kbd>' + (k + 1) + '</kbd>' + fmt(v) + ' ' + unit + '</button>'; }).join('')
+    + '<button data-o="1" style="background:#334155"><kbd style="color:#cbd5e1">0</kbd>Otra…</button>';
+  $('lnkG').href = 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=' + g.lat + ',' + g.lng;
+  $('lnkM').href = g.image_id ? 'https://www.mapillary.com/app/?pKey=' + encodeURIComponent(g.image_id) : 'https://www.mapillary.com/app/?lat=' + g.lat + '&lng=' + g.lng + '&z=18';
+  renderView();
+}
+
+function setBusy(b) { busy = b; document.querySelectorAll('#right button').forEach(function (x) { if (x.id !== 'out') x.disabled = b; }); }
+async function markAll(g, stt) { for (var k = 0; k < g.ids.length; k++) await call('admin_mapillary_done', { p_id: g.ids[k], p_status: stt }); }
+async function save(v) {
+  var g = groups[i]; if (!g || busy) return;
+  setBusy(true); $('msg').textContent = 'Guardando…';
+  try {
+    await call('admin_add_official_restriction', { p_type: g.kind, p_value: v, p_lat: g.lat, p_lng: g.lng, p_note: 'Mapillary (revisión en el ordenador)' });
+    await markAll(g, 'done');
+    doneCount++; groups.splice(i, 1); show();
+  } catch (e) { $('msg').textContent = 'No se pudo guardar: ' + e.message; }
+  finally { setBusy(false); }
+}
+async function dismiss() {
+  var g = groups[i]; if (!g || busy) return;
+  setBusy(true); $('msg').textContent = 'Descartando…';
+  try { await markAll(g, 'dismissed'); doneCount++; groups.splice(i, 1); show(); }
+  catch (e) { $('msg').textContent = 'No se pudo guardar: ' + e.message; }
+  finally { setBusy(false); }
+}
+function skip() { if (groups[i]) { i++; show(); } }
+function back() { if (i > 0) { i--; show(); } }
+function askOther() {
+  $('other').style.display = 'flex'; $('otherVal').value = ''; $('otherVal').focus();
+}
+function saveOther() {
+  var v = parseFloat(String($('otherVal').value).replace(',', '.'));
+  if (!isFinite(v) || v <= 0 || v > 60) { $('msg').textContent = 'Escribe una medida válida (por ejemplo 4,1).'; return; }
+  save(v);
+}
+
+$('presets').addEventListener('click', function (e) {
+  var b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.o) askOther(); else save(+b.dataset.v);
+});
+$('no').onclick = dismiss; $('skip').onclick = skip;
+$('otherOk').onclick = saveOther;
+$('otherVal').addEventListener('keydown', function (e) { if (e.key === 'Enter') saveOther(); if (e.key === 'Escape') $('other').style.display = 'none'; e.stopPropagation(); });
+$('reload').onclick = function () { load().catch(function (e) { $('msg').textContent = e.message; }); };
+document.querySelectorAll('#tabs button').forEach(function (b) { b.onclick = function () { view = b.dataset.v; renderView(); }; });
+$('out').onclick = function () { store.set('tp_admin_key', null); location.reload(); };
+document.addEventListener('keydown', function (e) {
+  if ($('app').style.display !== 'grid' || e.target.tagName === 'INPUT' || e.ctrlKey || e.metaKey || e.altKey) return;
+  var g = groups[i]; if (!g) return;
+  if (/^[1-9]$/.test(e.key)) { var v = (PRESETS[g.kind] || [])[+e.key - 1]; if (v != null) { e.preventDefault(); save(v); } }
+  else if (e.key === '0') { e.preventDefault(); askOther(); }
+  else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); dismiss(); }
+  else if (e.key === ' ') { e.preventDefault(); skip(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); back(); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); skip(); }
+});
+
+async function enter(key) {
+  $('lmsg').textContent = '';
+  try {
+    adminKey = key;
+    await ensureSession();
+    await call('admin_mapillary_signs', { p_status: 'done' }).catch(function (e) { throw e; });
+    store.set('tp_admin_key', key);
+    $('login').style.display = 'none'; $('app').style.display = 'grid';
+    await load();
+  } catch (e) {
+    store.set('tp_admin_key', null);
+    $('login').style.display = 'block'; $('app').style.display = 'none';
+    $('lmsg').textContent = /clave/i.test(e.message) ? 'Clave de administrador incorrecta.' : 'No se pudo entrar: ' + e.message;
+  }
+}
+$('enter').onclick = function () { enter($('key').value.trim()); };
+$('key').addEventListener('keydown', function (e) { if (e.key === 'Enter') enter($('key').value.trim()); });
+if (adminKey) enter(adminKey); else $('login').style.display = 'block';
+</script>
+</body>
+</html>
