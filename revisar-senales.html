@@ -87,6 +87,7 @@ kbd{position:absolute;top:4px;left:7px;font:700 11px/1 system-ui;color:#bbf7d0;o
     <div id="card">
       <div id="q"><span class="dot"></span><span id="qt"></span></div>
       <div id="where"></div>
+      <div id="osm" style="margin-top:8px;font-size:13.5px;border-radius:10px;padding:8px 10px;background:#1f2937;color:#94a3b8">🔎 Mirando si ya está en OpenStreetMap…</div>
       <div id="moved" style="margin-top:8px">📍 Pin movido a otro sitio: se guardará ahí. <button id="unmove">Volver al original</button></div>
     </div>
     <div style="color:var(--muted);font-size:13px">Pulsa la medida que pone la señal:</div>
@@ -240,10 +241,46 @@ function renderMap(g, inside) {
     L.polygon([tip, at(12, 0.45), at(12, -0.45)], { color: '#f0b429', fillColor: '#f0b429', fillOpacity: 1, weight: 1 }).addTo(lmap);
   }
 }
+// ¿Ya está en OpenStreetMap? (lo que ya usa la app para las rutas): calles a menos de 40 m con esa restricción
+var OSM_TAG = { height: 'maxheight', weight: 'maxweight', length: 'maxlength', width: 'maxwidth', axle: 'maxaxleload' };
+var OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+var osmCache = {};
+async function osmCheck(g) {
+  var tag = OSM_TAG[g.kind], p = pos(g), key = g.kind + p[0].toFixed(4) + p[1].toFixed(4);
+  if (!tag) return null;
+  if (osmCache[key]) return osmCache[key];
+  var extra = g.kind === 'weight' ? '|maxweightrating|maxweight:hgv' : g.kind === 'height' ? '|maxheight:physical' : '';
+  var q = '[out:json][timeout:15];(way(around:40,' + p[0] + ',' + p[1] + ')[~"^(' + tag + extra + ')$"~"."];node(around:40,' + p[0] + ',' + p[1] + ')[~"^(' + tag + extra + ')$"~"."];);out tags 10;';
+  for (var k = 0; k < OVERPASS.length; k++) {
+    try {
+      var ctl = new AbortController(); var t = setTimeout(function () { ctl.abort(); }, 12000);
+      var r = await fetch(OVERPASS[k], { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctl.signal });
+      clearTimeout(t);
+      if (!r.ok) continue;
+      var j = await r.json();
+      var out = (j.elements || []).map(function (e) { var tg = e.tags || {}; var kk = Object.keys(tg).find(function (x) { return new RegExp('^(' + tag + extra + ')$').test(x); }); return { name: tg.name || tg.ref || '', v: tg[kk] }; });
+      osmCache[key] = out; return out;
+    } catch (e) {}
+  }
+  return undefined;
+}
+function showOsm(g) {
+  var el = $('osm'); el.style.background = '#1f2937'; el.style.color = '#94a3b8'; el.textContent = '🔎 Mirando si ya está en OpenStreetMap…';
+  var mine = g;
+  osmCheck(g).then(function (l) {
+    if (groups[i] !== mine) return;
+    if (l === undefined) { el.textContent = 'No se ha podido mirar OpenStreetMap ahora mismo.'; return; }
+    if (!l || !l.length) { el.style.background = '#052e16'; el.style.color = '#86efac'; el.textContent = '✓ No está en OpenStreetMap: la app aún no la conoce.'; return; }
+    el.style.background = '#3b2a06'; el.style.color = '#fde68a';
+    el.innerHTML = '⚠️ <b>Ya está en OpenStreetMap</b> (la app ya la usa): ' + l.slice(0, 3).map(function (x) { return (x.name ? x.name + ' · ' : '') + String(x.v).replace(/</g, ''); }).join(' / ') + '. Si es la misma, pulsa <b>N</b>.';
+  });
+}
+
 function showMoved(g) {
   var m = g.mlat != null;
   $('moved').style.display = m ? 'block' : 'none';
   var p = pos(g);
+  showOsm(g);
   $('where').textContent = p[0].toFixed(5) + ', ' + p[1].toFixed(5);
 }
 
