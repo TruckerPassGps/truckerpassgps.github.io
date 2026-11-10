@@ -72,9 +72,9 @@ kbd{position:absolute;top:4px;left:7px;font:700 11px/1 system-ui;color:#bbf7d0;o
 <div id="app">
   <div id="left">
     <div id="tabs">
-      <button data-v="foto" id="tabFoto">🔍 Foto (zoom)</button>
+      <button data-v="sv" class="on">Street View + mapa</button>
+      <button data-v="foto" id="tabFoto">🔍 Foto Mapillary + mapa</button>
       <button data-v="mly" id="tabMly">Mapillary 360°</button>
-      <button data-v="sv" class="on">Street View</button>
       <button data-v="map">📍 Mapa (mover pin) <span style="opacity:.7;font-size:12px">M</span></button>
       <span class="sp"></span>
       <a id="lnkG" target="_blank" rel="noopener">Abrir en Google Maps ↗</a>
@@ -98,7 +98,7 @@ kbd{position:absolute;top:4px;left:7px;font:700 11px/1 system-ui;color:#bbf7d0;o
     </div>
     <div id="msg"></div>
     <div id="done"><div style="font-size:40px">✅</div><b>¡Terminado!</b><p id="doneTxt" style="color:var(--muted)"></p><button id="reload" style="background:#1d4ed8;padding:10px 16px;font-weight:800">Cargar más</button></div>
-    <div class="help"><b>Teclado:</b> 1–9 = medida · <b>0</b> = otra · <b>N</b> = no es · <b>Espacio</b> = saltar · <b>←</b> = volver a la anterior · <b>M</b> = mapa / Street View<br>A la derecha de la foto, el mapa: la <b style="color:#f0b429">flecha amarilla</b> es la calle y el sentido de los camiones que ven la señal. Si el pin está en otra calle, arrástralo (o pincha) donde está de verdad y luego elige la medida.<br>
+    <div class="help"><b>Teclado:</b> 1–9 = medida · <b>0</b> = otra · <b>N</b> = no es · <b>Espacio</b> = saltar · <b>←</b> = volver a la anterior · <b>M</b> = mapa / Street View<br>A la izquierda, Street View; a la derecha, el mapa: la <b style="color:#f0b429">flecha amarilla</b> es la calle y el sentido de los camiones que ven la señal. Si el pin está en otra calle, arrástralo (o pincha) donde está de verdad: el Street View se va a ese sitio. Luego elige la medida.<br>
       Al guardar vale al momento para todos, como en la app.</div>
   </div>
 </div>
@@ -173,7 +173,12 @@ function renderView() {
   if (view === 'map') { renderMap(g); return; }
   if (lmap) { lmap.remove(); lmap = null; }
   if (view === 'foto') { renderZoom(g); return; }
-  var src = view === 'mly' ? 'https://www.mapillary.com/embed?image_key=' + encodeURIComponent(g.image_id) + '&style=photo' : svUrl(g);
+  if (view === 'sv') { // (Street View a la izquierda, el mapa con el pin a la derecha)
+    $('view').innerHTML = '<div id="split"><div style="flex:3;min-width:0"><iframe id="svFrame" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="' + svUrl(g) + '"></iframe></div><div id="lmap"></div></div>';
+    try { renderMap(g, true); } catch (e) {}
+    return;
+  }
+  var src = 'https://www.mapillary.com/embed?image_key=' + encodeURIComponent(g.image_id) + '&style=photo';
   $('view').innerHTML = '<iframe allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="' + src + '"></iframe>';
 }
 
@@ -219,7 +224,10 @@ function renderMap(g, inside) {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(lmap);
   L.circleMarker([g.lat, g.lng], { radius: 6, color: '#94a3b8', weight: 2, fillOpacity: 0.3 }).addTo(lmap).bindTooltip('Donde la puso Mapillary');
   lmark = L.marker(pos(g), { draggable: true }).addTo(lmap).bindTooltip('Arrástrame o pincha en el mapa', { permanent: false });
-  var move = function (ll) { g.mlat = +ll.lat.toFixed(6); g.mlng = +ll.lng.toFixed(6); lmark.setLatLng(ll); showMoved(g); };
+  var move = function (ll) {
+    g.mlat = +ll.lat.toFixed(6); g.mlng = +ll.lng.toFixed(6); lmark.setLatLng(ll); showMoved(g);
+    var f = document.getElementById('svFrame'); if (f) f.src = svUrl(g); // el Street View va donde pongas el pin
+  };
   lmark.on('dragend', function () { move(lmark.getLatLng()); });
   lmap.on('click', function (e) { move(e.latlng); });
   // Flecha: hacia dónde van los vehículos que ven la señal (la señal mira hacia ellos)
@@ -252,7 +260,7 @@ function show() {
     return;
   }
   $('card').style.display = '';
-  if (g._shown !== true) { g._shown = true; view = g.thumb_url ? 'foto' : g.image_id ? 'mly' : 'sv'; }
+  if (g._shown !== true) { g._shown = true; view = 'sv'; }
   $('count').textContent = (i + 1) + ' de ' + groups.length + (inSpain(g) ? ' · 🇪🇸' : '') + (g.ids.length > 1 ? ' · ' + g.ids.length + ' fotos' : '');
   $('qt').textContent = TYPE_ES[g.kind] || g.kind;
   document.querySelector('#q .dot').style.background = COLOR[g.kind] || '#64748b';
