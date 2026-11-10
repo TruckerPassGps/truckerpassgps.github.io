@@ -199,6 +199,7 @@ function show() {
     return;
   }
   $('card').style.display = '';
+  if (g._shown !== true) { g._shown = true; view = g.image_id ? 'mly' : 'sv'; }
   $('count').textContent = (i + 1) + ' de ' + groups.length + (inSpain(g) ? ' · 🇪🇸' : '') + (g.ids.length > 1 ? ' · ' + g.ids.length + ' fotos' : '');
   $('qt').textContent = TYPE_ES[g.kind] || g.kind;
   document.querySelector('#q .dot').style.background = COLOR[g.kind] || '#64748b';
