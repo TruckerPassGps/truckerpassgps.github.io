@@ -202,6 +202,14 @@ function setupPlace(id) {
 setupPlace('from'); setupPlace('to');
 
 function say(text, ok) { var m = $('msg'); m.textContent = text; m.className = 'msg ' + (ok ? 'ok' : 'err'); }
+// (r347q) a la cuarta carga del mes: el correo para pedir más, que se puede pulsar
+var MAIL = 'truckerpassgps@gmail.com';
+function sayLimit() {
+  var m = $('msg'); m.className = 'msg err'; m.textContent = 'Ya has publicado 3 cargas este mes (lo gratis). Para publicar más, escríbenos a ';
+  var a = document.createElement('a'); a.href = 'mailto:' + MAIL + '?subject=' + encodeURIComponent('Publicar más cargas en TruckerPass');
+  a.textContent = MAIL; a.style.cssText = 'color:inherit;font-weight:800;text-decoration:underline'; m.appendChild(a);
+  m.appendChild(document.createTextNode(' y te daremos más información.'));
+}
 async function session() {
   if (!sb) throw new Error('No se pudo cargar. Recarga la página.');
   var s = await sb.auth.getSession();
@@ -283,8 +291,8 @@ $('f').addEventListener('submit', async function (ev) {
     loadMine();
   } catch (e) {
     var m = String((e && e.message) || e);
-    say(/Ya has publicado/.test(m) ? 'Ya has publicado 3 cargas en 30 días (lo gratis). Para más, escríbenos.'
-      : /function|schema/i.test(m) ? 'La bolsa de cargas aún no está activada. Prueba más tarde.'
+    if (/Ya has publicado/.test(m)) { sayLimit(); return; }
+    say(/function|schema/i.test(m) ? 'La bolsa de cargas aún no está activada. Prueba más tarde.'
       : /fetch|network/i.test(m) ? 'No se ha podido. Comprueba la conexión.' : 'No se ha publicado: ' + m);
   } finally { btn.disabled = false; btn.textContent = 'Publicar la carga'; }
 });
