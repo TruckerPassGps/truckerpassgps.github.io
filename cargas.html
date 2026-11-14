@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Publicar una carga · TruckerPass</title>
+<meta name="description" content="Publica gratis tus cargas para los camioneros de TruckerPass GPS. Sin comisiones: te llaman directamente.">
+<!-- (r347k, el dueño: «una página web sencilla para que las empresas publiquen cargas sin bajarse la app») -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+  :root { --bg: #0b0f17; --panel: #111827; --card: #1f2937; --line: #334155; --fg: #f1f5f9; --mut: #94a3b8; --amber: #E3B04B; --green: #22c55e; --red: #ef4444; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 60px; }
+  header { display: flex; align-items: center; gap: 10px; padding: 18px 0; }
+  .logo { width: 38px; height: 38px; border-radius: 10px; background: var(--amber); color: #111; display: grid; place-items: center; font-weight: 900; }
+  header b { font-size: 18px; } header span { color: var(--mut); font-size: 13px; display: block; }
+  .hero { padding: 18px 0 6px; }
+  .hero h1 { font-size: clamp(26px, 6vw, 40px); line-height: 1.1; margin: 0 0 10px; }
+  .hero h1 em { color: var(--amber); font-style: normal; }
+  .hero p { color: #cbd5e1; font-size: 17px; margin: 0; }
+  .perks { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 18px 0 22px; }
+  .perk { background: var(--panel); border: 1px solid var(--card); border-radius: 14px; padding: 12px 14px; }
+  .perk b { display: block; } .perk span { color: var(--mut); font-size: 14px; }
+  .box { background: var(--panel); border: 1px solid var(--card); border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+  .box h2 { display: flex; align-items: center; gap: 10px; font-size: 19px; margin: 0 0 4px; }
+  .box h2 i { width: 30px; height: 30px; border-radius: 15px; background: var(--amber); color: #111; display: grid; place-items: center; font-style: normal; font-weight: 900; font-size: 15px; }
+  label { display: block; font-weight: 700; font-size: 14px; margin: 12px 0 5px; }
+  input, textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--fg); font: inherit; }
+  input:focus, textarea:focus { outline: 2px solid var(--amber); border-color: transparent; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; } .row > * { flex: 1; min-width: 150px; }
+  .hint { color: var(--mut); font-size: 13px; margin-top: 5px; }
+  .place { position: relative; }
+  .sug { position: absolute; left: 0; right: 0; top: 100%; z-index: 5; background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-top: 4px; overflow: hidden; display: none; }
+  .sug button { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 0; background: none; color: var(--fg); font: inherit; cursor: pointer; border-top: 1px solid #263244; }
+  .sug button:first-child { border-top: 0; } .sug button:hover { background: #2a3648; }
+  .sug small { color: var(--mut); display: block; }
+  .ok-pin { color: var(--green); font-size: 13px; font-weight: 700; margin-top: 5px; min-height: 18px; }
+  .days { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--card); color: var(--fg); font: 700 14px system-ui, sans-serif; cursor: pointer; }
+  .chip.on { border-color: var(--amber); background: #3a2f12; }
+  .kinds { display: flex; gap: 8px; flex-wrap: wrap; }
+  .check { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; font-size: 14px; color: #cbd5e1; margin-top: 14px; }
+  .check input { width: 20px; height: 20px; margin-top: 2px; flex: none; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 15px; border-radius: 14px; border: 0; font: 900 17px system-ui, sans-serif; cursor: pointer; background: var(--amber); color: #111; margin-top: 16px; }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .msg { margin-top: 14px; padding: 12px 14px; border-radius: 12px; font-weight: 700; display: none; }
+  .msg.ok { display: block; background: #052e16; color: #86efac; } .msg.err { display: block; background: #450a0a; color: #fca5a5; }
+  .mine { list-style: none; padding: 0; margin: 8px 0 0; }
+  .mine li { background: var(--card); border-radius: 12px; padding: 10px 12px; margin-top: 8px; display: flex; justify-content: space-between; gap: 10px; }
+  .mine small { color: var(--mut); display: block; }
+  .st { font-weight: 800; font-size: 13px; white-space: nowrap; } .st.new { color: var(--amber); } .st.active { color: var(--green); } .st.rejected { color: var(--red); } .st.done { color: var(--mut); }
+  .warn { color: var(--mut); font-size: 13px; }
+  .done-btn { margin-top: 8px; padding: 8px 12px; border-radius: 10px; border: 1px solid #166534; background: #052e16; color: #86efac; font: 800 14px system-ui, sans-serif; cursor: pointer; }
+  .code { font: 900 15px ui-monospace, monospace; letter-spacing: 1px; color: var(--amber); }
+  .codebox { display: flex; gap: 8px; } .codebox input { text-transform: uppercase; letter-spacing: 2px; font-family: ui-monospace, monospace; }
+  .codebox button { flex: none; padding: 0 14px; border-radius: 10px; border: 0; background: var(--amber); color: #111; font: 800 14px system-ui, sans-serif; cursor: pointer; }
+  footer { color: var(--mut); font-size: 12px; text-align: center; margin-top: 30px; }
+  a { color: var(--amber); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="logo">TP</div><div><b>TruckerPass GPS</b><span>Cargas para camioneros</span></div></header>
+
+  <section class="hero">
+    <h1>¿Tienes una carga? <em>Publícala gratis</em>.</h1>
+    <p>La ven los camioneros de TruckerPass que pasan o vuelven vacíos por esa zona, con el camión que hace falta. Te llaman o te escriben directamente.</p>
+  </section>
+  <div class="perks">
+    <div class="perk"><b>Gratis</b><span>3 cargas cada 30 días.</span></div>
+    <div class="perk"><b>Sin comisión</b><span>Tratas directamente con el camionero.</span></div>
+    <div class="perk"><b>Sin instalar nada</b><span>Desde esta página, en 1 minuto.</span></div>
+  </div>
+
+  <form id="f" autocomplete="on" novalidate>
+    <div class="box">
+      <h2><i>1</i>Empresa</h2>
+      <label for="company">Nombre</label>
+      <input id="company" name="organization" maxlength="80" placeholder="Transportes Ejemplo S.L." required>
+      <label for="phone">Teléfono o WhatsApp</label>
+      <input id="phone" name="tel" type="tel" maxlength="30" placeholder="+34 600 000 000" required>
+      <div class="hint">Con prefijo si no es de España, por ejemplo +33 6 12 34 56 78. Es el que verán los camioneros.</div>
+    </div>
+
+    <div class="box">
+      <h2><i>2</i>Ruta y día</h2>
+      <label for="from">Carga en</label>
+      <div class="place"><input id="from" maxlength="80" placeholder="Utebo, Zaragoza" autocomplete="off"><div class="sug" id="fromSug"></div></div>
+      <div class="ok-pin" id="fromOk"></div>
+      <label for="to">Descarga en</label>
+      <div class="place"><input id="to" maxlength="80" placeholder="Cariñena, Zaragoza" autocomplete="off"><div class="sug" id="toSug"></div></div>
+      <div class="ok-pin" id="toOk"></div>
+      <label>Día de carga</label>
+      <div class="days" id="days"></div>
+      <div class="row">
+        <div><label for="day">U otro día</label><input id="day" type="date"></div>
+        <div><label for="time">Hora (si importa)</label><input id="time" maxlength="20" placeholder="08:00"></div>
+      </div>
+    </div>
+
+    <div class="box">
+      <h2><i>3</i>La carga</h2>
+      <label for="what">Qué es</label>
+      <input id="what" maxlength="120" placeholder="Palés de fruta · frío +4 °C" required>
+      <div class="row">
+        <div><label for="weight">Peso (t)</label><input id="weight" inputmode="decimal" maxlength="5" placeholder="24"></div>
+        <div><label for="price">Precio (o en blanco: a convenir)</label><input id="price" maxlength="30" placeholder="A convenir"></div>
+      </div>
+      <label>Qué camión hace falta</label>
+      <div class="kinds" id="kinds"></div>
+      <div class="hint">Sin marcar ninguno: vale cualquiera.</div>
+      <label class="check"><input type="checkbox" id="ok"> <span>Acepto que el nombre de la empresa, el teléfono y la carga se muestren a los camioneros de TruckerPass, y la <a href="politica-privacidad.html" target="_blank">política de privacidad</a>. Las cargas se borran a los 90 días.</span></label>
+      <button class="btn" id="send" type="submit">Publicar la carga</button>
+      <div class="msg" id="msg"></div>
+      <p class="warn">No sale hasta que la revisamos (para evitar estafas). TruckerPass no cobra comisión ni cierra el trato.</p>
+    </div>
+  </form>
+
+  <div class="box" id="mineBox" style="display:none">
+    <h2>Tus cargas</h2>
+    <div class="hint">Cuando la tengas cubierta, toca «Ya está cubierta»: deja de salir a los camioneros al momento.</div>
+    <ul class="mine" id="mine"></ul>
+  </div>
+
+  <!-- (parte 93) quitar una carga con su código, desde otro móvil u ordenador -->
+  <div class="box">
+    <h2>¿Ya está cubierta?</h2>
+    <div class="hint">Si la publicaste desde otro móvil u ordenador, escribe su código (8 letras y números, te lo dimos al publicarla) y deja de salir al momento.</div>
+    <div class="codebox" style="margin-top:10px"><input id="code" maxlength="9" placeholder="5D15EDB8" autocomplete="off"><button type="button" id="codeBtn">Quitar</button></div>
+    <div class="msg" id="codeMsg"></div>
+  </div>
+
+  <footer>TruckerPass GPS · Búsqueda de lugares © colaboradores de OpenStreetMap (Photon) · <a href="politica-privacidad.html">Privacidad</a> · <a href="index.html">Inicio</a></footer>
+</div>
+
+<script>
+// Clave pública (publishable) de Supabase: es pública por diseño (la misma que partners.html). Nunca la secreta.
+var SUPABASE_URL = 'https://ybwsmemdajtcssxldflz.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_b_VnmzGJbUFHKkLgyLraDg__b6BsDOI';
+var sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+var $ = function (id) { return document.getElementById(id); };
+
+var KINDS = [['trailer', 'Tráiler'], ['mega', 'Megatráiler'], ['reefer', 'Frigorífico'], ['tanker', 'Cisterna'], ['rigid', 'Rígido lona'], ['rigidbox', 'Rígido caja'],
+  ['container', 'Portacontenedores'], ['tipper', 'Volquete'], ['lowloader', 'Góndola'], ['carcarrier', 'Portavehículos'], ['livestock', 'Ganado'], ['van', 'Furgoneta']];
+var kinds = {};
+KINDS.forEach(function (k) {
+  var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = k[1];
+  b.onclick = function () { kinds[k[0]] = !kinds[k[0]]; b.classList.toggle('on', !!kinds[k[0]]); };
+  $('kinds').appendChild(b);
+});
+
+// Día: hoy, mañana, pasado (o el calendario: de hoy a 60 días)
+var iso = function (d) { var z = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); };
+var today = new Date(); today.setHours(12, 0, 0, 0);
+var addD = function (n) { var d = new Date(today); d.setDate(d.getDate() + n); return d; };
+$('day').min = iso(today); $('day').max = iso(addD(60));
+var dayBtns = [];
+[['Hoy', 0], ['Mañana', 1], [addD(2).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' }), 2]].forEach(function (x) {
+  var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = x[0];
+  b.onclick = function () { $('day').value = iso(addD(x[1])); paintDays(); };
+  dayBtns.push([b, x[1]]); $('days').appendChild(b);
+});
+var paintDays = function () { dayBtns.forEach(function (x) { x[0].classList.toggle('on', $('day').value === iso(addD(x[1]))); }); };
+$('day').value = iso(addD(1)); paintDays();
+$('day').onchange = paintDays;
+
+// Pueblo o ciudad (Photon, OpenStreetMap, gratis): al escribir salen sugerencias; hay que elegir una
+var picked = { from: null, to: null };
+function placeLabel(p) { var pr = p.properties || {}; var town = pr.city || pr.town || pr.village || pr.county; return [pr.name, town !== pr.name ? town : null, pr.state].filter(Boolean).join(', '); }
+function setupPlace(id) {
+  var inp = $(id), box = $(id + 'Sug'), okEl = $(id + 'Ok'), t = null, seq = 0;
+  inp.addEventListener('input', function () {
+    picked[id] = null; okEl.textContent = '';
+    clearTimeout(t);
+    var q = inp.value.trim();
+    if (q.length < 3) { box.style.display = 'none'; return; }
+    t = setTimeout(async function () {
+      var my = ++seq;
+      try {
+        var r = await fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(q) + '&limit=5&lang=default&bbox=-32,27,45,72');
+        var j = await r.json();
+        if (my !== seq) return;
+        var fs = (j.features || []).filter(function (f) { return f.geometry && f.geometry.coordinates; });
+        box.innerHTML = '';
+        fs.forEach(function (f) {
+          var b = document.createElement('button'); b.type = 'button';
+          var pr = f.properties || {}; b.textContent = placeLabel(f);
+          var sm = document.createElement('small'); sm.textContent = [pr.postcode, pr.country].filter(Boolean).join(' · '); b.appendChild(sm);
+          b.onclick = function () {
+            picked[id] = { name: placeLabel(f).slice(0, 80), lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0] };
+            inp.value = picked[id].name; box.style.display = 'none'; okEl.textContent = '✓ ' + picked[id].name;
+          };
+          box.appendChild(b);
+        });
+        box.style.display = fs.length ? 'block' : 'none';
+      } catch (e) { box.style.display = 'none'; }
+    }, 350);
+  });
+  inp.addEventListener('blur', function () { setTimeout(function () { box.style.display = 'none'; }, 200); });
+}
+setupPlace('from'); setupPlace('to');
+
+function say(text, ok) { var m = $('msg'); m.textContent = text; m.className = 'msg ' + (ok ? 'ok' : 'err'); }
+async function session() {
+  if (!sb) throw new Error('No se pudo cargar. Recarga la página.');
+  var s = await sb.auth.getSession();
+  if (!s.data.session) { var r = await sb.auth.signInAnonymously(); if (r.error) throw r.error; }
+}
+var STATUS = { new: 'En revisión', active: 'Publicada', rejected: 'Rechazada', done: 'Terminada' };
+async function loadMine() {
+  try {
+    if (!sb) return;
+    var s = await sb.auth.getSession();
+    if (!s.data.session) return;
+    var r = await sb.rpc('my_return_loads');
+    var list = (r && r.data) || [];
+    $('mineBox').style.display = list.length ? 'block' : 'none';
+    $('mine').innerHTML = '';
+    list.forEach(function (l) {
+      var li = document.createElement('li');
+      var a = document.createElement('div'); a.textContent = (l.from_name || '') + ' → ' + (l.to_name || '');
+      var sm = document.createElement('small'); sm.textContent = (l.load_day || '') + ' · ' + (l.what || '') + (l.status === 'rejected' && l.reason ? ' · ' + l.reason : ''); a.appendChild(sm);
+      if (l.code && (l.status === 'new' || l.status === 'active')) {
+        var cd = document.createElement('small'); cd.innerHTML = 'Código: <span class="code"></span>'; cd.querySelector('.code').textContent = l.code; a.appendChild(cd);
+        var bt = document.createElement('button'); bt.type = 'button'; bt.className = 'done-btn'; bt.textContent = '✓ Ya está cubierta';
+        bt.onclick = function () { closeLoad({ p_id: l.id }, bt); };
+        a.appendChild(bt);
+      }
+      var st = document.createElement('span'); st.className = 'st ' + l.status; st.textContent = STATUS[l.status] || l.status;
+      li.appendChild(a); li.appendChild(st); $('mine').appendChild(li);
+    });
+  } catch (e) {}
+}
+
+// «Ya está cubierta» (parte 93): la quita la empresa, sin esperar al administrador
+async function closeLoad(args, btn, msgEl) {
+  if (btn) btn.disabled = true;
+  try {
+    await session();
+    var r = await sb.rpc('close_return_load', Object.assign({ p_id: null, p_code: null }, args));
+    if (r.error) throw r.error;
+    var d = r.data || {};
+    if (!d.closed) throw new Error(d.error || 'No encuentro esa carga (o ya estaba quitada)');
+    if (msgEl) { msgEl.textContent = '✅ Quitada. Ya no les sale a los camioneros.'; msgEl.className = 'msg ok'; }
+    loadMine();
+  } catch (e) {
+    var m = String((e && e.message) || e);
+    m = /function|schema/i.test(m) ? 'Aún no está activado. Prueba más tarde.' : /fetch|network/i.test(m) ? 'No se ha podido. Comprueba la conexión.' : m;
+    if (msgEl) { msgEl.textContent = m; msgEl.className = 'msg err'; } else alert(m);
+  } finally { if (btn) btn.disabled = false; }
+}
+$('codeBtn').onclick = function () {
+  var c = $('code').value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+  if (c.length !== 8) { $('codeMsg').textContent = 'El código tiene 8 letras y números.'; $('codeMsg').className = 'msg err'; return; }
+  closeLoad({ p_code: c }, $('codeBtn'), $('codeMsg'));
+};
+
+$('f').addEventListener('submit', async function (ev) {
+  ev.preventDefault();
+  var company = $('company').value.trim(), phone = $('phone').value.trim(), what = $('what').value.trim();
+  var w = $('weight').value.trim().replace(',', '.'), weight = w ? Number(w) : null;
+  if (company.length < 2) return say('Escribe el nombre de la empresa.');
+  if (!/^[0-9 +().-]{6,30}$/.test(phone)) return say('Revisa el teléfono (solo números, espacios y +).');
+  if (!picked.from || !picked.to) return say('Escribe el pueblo o la ciudad de carga y de descarga y elígelo en la lista que sale debajo.');
+  if (!$('day').value || $('day').value < $('day').min || $('day').value > $('day').max) return say('Revisa la fecha (de hoy a 60 días).');
+  if (what.length < 2) return say('Escribe qué es la carga (palés, frío +4 °C…).');
+  if (weight != null && !(weight > 0 && weight <= 60)) return say('Revisa el peso: en toneladas, entre 0 y 60.');
+  if (!$('ok').checked) return say('Marca la casilla para aceptar que los camioneros vean la carga y tu teléfono.');
+  var btn = $('send'); btn.disabled = true; btn.textContent = 'Enviando…';
+  try {
+    await session();
+    var r = await sb.rpc('post_return_load', {
+      p_company: company, p_phone: phone, p_from_name: picked.from.name, p_from_lat: picked.from.lat, p_from_lng: picked.from.lng,
+      p_to_name: picked.to.name, p_to_lat: picked.to.lat, p_to_lng: picked.to.lng, p_day: $('day').value, p_time: $('time').value.trim() || null,
+      p_what: what, p_weight: weight, p_kinds: Object.keys(kinds).filter(function (k) { return kinds[k]; }), p_price: $('price').value.trim() || null,
+    });
+    if (r.error) throw r.error;
+    var code = r.data && r.data.code;
+    say('✅ Carga enviada. La revisamos y, en cuanto la aprobemos, la verán los camioneros que pasan o vuelven vacíos por allí.'
+      + (code ? ' Apunta su código: ' + code + ' (con él la quitas cuando esté cubierta, desde cualquier sitio).' : ''), true);
+    $('what').value = ''; $('weight').value = ''; $('price').value = ''; $('time').value = '';
+    loadMine();
+  } catch (e) {
+    var m = String((e && e.message) || e);
+    say(/Ya has publicado/.test(m) ? 'Ya has publicado 3 cargas en 30 días (lo gratis). Para más, escríbenos.'
+      : /function|schema/i.test(m) ? 'La bolsa de cargas aún no está activada. Prueba más tarde.'
+      : /fetch|network/i.test(m) ? 'No se ha podido. Comprueba la conexión.' : 'No se ha publicado: ' + m);
+  } finally { btn.disabled = false; btn.textContent = 'Publicar la carga'; }
+});
+loadMine();
+</script>
+</body>
+</html>
