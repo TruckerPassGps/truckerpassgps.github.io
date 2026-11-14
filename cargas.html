@@ -55,6 +55,10 @@
   .code { font: 900 15px ui-monospace, monospace; letter-spacing: 1px; color: var(--amber); }
   .codebox { display: flex; gap: 8px; } .codebox input { text-transform: uppercase; letter-spacing: 2px; font-family: ui-monospace, monospace; }
   .codebox button { flex: none; padding: 0 14px; border-radius: 10px; border: 0; background: var(--amber); color: #111; font: 800 14px system-ui, sans-serif; cursor: pointer; }
+  .tabs { display: flex; gap: 8px; margin: 6px 0 4px; } .tabs button { flex: 1; }
+  .status { padding: 12px 14px; border-radius: 12px; font-weight: 700; margin-top: 8px; }
+  .status.pending { background: #3a2f12; color: #fde68a; } .status.verified { background: #052e16; color: #86efac; } .status.rejected { background: #450a0a; color: #fca5a5; }
+  .link { background: none; border: 0; color: var(--amber); font: 700 14px system-ui, sans-serif; cursor: pointer; padding: 0; text-decoration: underline; }
   footer { color: var(--mut); font-size: 12px; text-align: center; margin-top: 30px; }
   a { color: var(--amber); }
 </style>
@@ -69,22 +73,48 @@
   </section>
   <div class="perks">
     <div class="perk"><b>Gratis</b><span>3 cargas cada 30 días.</span></div>
+    <div class="perk"><b>Empresas verificadas</b><span>Te registras una vez y te llamamos para verificarte: así no hay estafas.</span></div>
     <div class="perk"><b>Sin comisión</b><span>Tratas directamente con el camionero.</span></div>
     <div class="perk"><b>Sin instalar nada</b><span>Desde esta página, en 1 minuto.</span></div>
   </div>
 
-  <form id="f" autocomplete="on" novalidate>
-    <div class="box">
-      <h2><i>1</i>Empresa</h2>
-      <label for="company">Nombre</label>
-      <input id="company" name="organization" maxlength="80" placeholder="Transportes Ejemplo S.L." required>
-      <label for="phone">Teléfono o WhatsApp</label>
-      <input id="phone" name="tel" type="tel" maxlength="30" placeholder="+34 600 000 000" required>
-      <div class="hint">Con prefijo si no es de España, por ejemplo +33 6 12 34 56 78. Es el que verán los camioneros.</div>
+  <!-- (r347q, parte 94, el dueño: «para poner cargas, que estén verificados») la empresa entra o se registra; hasta que la
+       verificamos (la llamamos) no puede publicar -->
+  <div class="box" id="acct">
+    <h2>Tu empresa</h2>
+    <div id="acctOut">
+      <div class="tabs"><button type="button" class="chip on" id="tabIn">Ya tengo cuenta</button><button type="button" class="chip" id="tabUp">Registrar mi empresa</button></div>
+      <label for="email">Correo</label>
+      <input id="email" type="email" autocomplete="email" maxlength="120" placeholder="trafico@tuempresa.com">
+      <label for="pass">Contraseña</label>
+      <input id="pass" type="password" autocomplete="current-password" maxlength="72" placeholder="Mínimo 8 letras o números">
+      <div id="upFields" style="display:none">
+        <label for="cName">Nombre de la empresa</label>
+        <input id="cName" name="organization" maxlength="80" placeholder="Transportes Ejemplo S.L.">
+        <div class="row">
+          <div><label for="cTax">CIF / NIF (o nº de IVA)</label><input id="cTax" maxlength="20" placeholder="B12345674"></div>
+          <div><label for="cPhone">Teléfono o WhatsApp</label><input id="cPhone" type="tel" maxlength="30" placeholder="+34 600 000 000"></div>
+        </div>
+        <div class="hint">Te llamaremos a este teléfono para verificar la empresa. Es el que verán los camioneros.</div>
+        <div class="row">
+          <div><label for="cContact">Persona de contacto</label><input id="cContact" maxlength="60" placeholder="Ana (tráfico)"></div>
+          <div><label for="cTown">Población</label><input id="cTown" maxlength="80" placeholder="Utebo, Zaragoza"></div>
+        </div>
+        <label class="check"><input type="checkbox" id="upOk"> <span>Acepto que el nombre de la empresa, el teléfono y sus cargas se muestren a los camioneros de TruckerPass, y la <a href="politica-privacidad.html" target="_blank">política de privacidad</a>.</span></label>
+      </div>
+      <button class="btn" id="acctBtn" type="button">Entrar</button>
+      <div class="hint" style="margin-top:10px">¿Has olvidado la contraseña? Escríbenos a <a class="mailto" href="#"></a>.</div>
     </div>
+    <div id="acctIn" style="display:none">
+      <div class="status" id="coStatus"></div>
+      <div class="hint" style="margin-top:8px"><span id="coWho"></span> · <button type="button" class="link" id="logout">Salir</button></div>
+    </div>
+    <div class="msg" id="acctMsg"></div>
+  </div>
 
+  <form id="f" autocomplete="on" novalidate style="display:none">
     <div class="box">
-      <h2><i>2</i>Ruta y día</h2>
+      <h2><i>1</i>Ruta y día</h2>
       <label for="from">Carga en</label>
       <div class="place"><input id="from" maxlength="80" placeholder="Utebo, Zaragoza" autocomplete="off"><div class="sug" id="fromSug"></div></div>
       <div class="ok-pin" id="fromOk"></div>
@@ -100,7 +130,7 @@
     </div>
 
     <div class="box">
-      <h2><i>3</i>La carga</h2>
+      <h2><i>2</i>La carga</h2>
       <label for="what">Qué es</label>
       <input id="what" maxlength="120" placeholder="Palés de fruta · frío +4 °C" required>
       <div class="row">
@@ -110,10 +140,10 @@
       <label>Qué camión hace falta</label>
       <div class="kinds" id="kinds"></div>
       <div class="hint">Sin marcar ninguno: vale cualquiera.</div>
-      <label class="check"><input type="checkbox" id="ok"> <span>Acepto que el nombre de la empresa, el teléfono y la carga se muestren a los camioneros de TruckerPass, y la <a href="politica-privacidad.html" target="_blank">política de privacidad</a>. Las cargas se borran a los 90 días.</span></label>
+      <div class="hint">Las cargas se borran a los 90 días.</div>
       <button class="btn" id="send" type="submit">Publicar la carga</button>
       <div class="msg" id="msg"></div>
-      <p class="warn">No sale hasta que la revisamos (para evitar estafas). TruckerPass no cobra comisión ni cierra el trato.</p>
+      <p class="warn">Tu empresa está verificada: la carga sale al momento. TruckerPass no cobra comisión ni cierra el trato.</p>
     </div>
   </form>
 
@@ -205,7 +235,7 @@ function say(text, ok) { var m = $('msg'); m.textContent = text; m.className = '
 // (r347q) a la cuarta carga del mes: el correo para pedir más, que se puede pulsar
 var MAIL = 'truckerpassgps@gmail.com';
 function sayLimit() {
-  var m = $('msg'); m.className = 'msg err'; m.textContent = 'Ya has publicado 3 cargas este mes (lo gratis). Para publicar más, escríbenos a ';
+  var m = $('msg'); m.className = 'msg err'; m.textContent = 'Ya has publicado las cargas gratis de este mes. Para publicar más, escríbenos a ';
   var a = document.createElement('a'); a.href = 'mailto:' + MAIL + '?subject=' + encodeURIComponent('Publicar más cargas en TruckerPass');
   a.textContent = MAIL; a.style.cssText = 'color:inherit;font-weight:800;text-decoration:underline'; m.appendChild(a);
   m.appendChild(document.createTextNode(' y te daremos más información.'));
@@ -215,6 +245,108 @@ async function session() {
   var s = await sb.auth.getSession();
   if (!s.data.session) { var r = await sb.auth.signInAnonymously(); if (r.error) throw r.error; }
 }
+document.querySelectorAll('a.mailto').forEach(function (a) { a.href = 'mailto:' + MAIL; a.textContent = MAIL; });
+
+// ═════════ (parte 94) LA EMPRESA: entrar, registrarse y verificación ═════════
+// CIF / NIF / NIE de España (con su control) o nº de IVA de otro país de Europa (lo mismo que comprueba el servidor)
+function taxOk(t) {
+  var s = String(t || '').toUpperCase().replace(/[^0-9A-Z]/g, ''), L = 'TRWAGMYFPDXBNJZSQVHLCKE';
+  if (/^ES/.test(s) && s.length === 11) s = s.slice(2);
+  if (/^[0-9]{8}[A-Z]$/.test(s)) return L[Number(s.slice(0, 8)) % 23] === s[8];
+  if (/^[XYZ][0-9]{7}[A-Z]$/.test(s)) return L[Number('XYZ'.indexOf(s[0]) + s.slice(1, 8)) % 23] === s[8];
+  if (/^[ABCDEFGHJNPQRSUVW][0-9]{7}[0-9A-J]$/.test(s)) {
+    var sm = 0; for (var i = 1; i <= 7; i++) { var d = Number(s[i]); if (i % 2 === 1) { d *= 2; sm += Math.floor(d / 10) + d % 10; } else sm += d; }
+    var ctl = (10 - sm % 10) % 10, c = s[8], let_ = 'JABCDEFGHI'[ctl];
+    if ('PQRSNW'.indexOf(s[0]) >= 0) return c === let_;
+    if ('ABEH'.indexOf(s[0]) >= 0) return c === String(ctl);
+    return c === String(ctl) || c === let_;
+  }
+  return /^(AT|BE|BG|CY|CZ|DE|DK|EE|EL|GR|FI|FR|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK|GB|XI|CH|NO)[0-9A-Z]{2,13}$/.test(s);
+}
+var signUpMode = false, company = null;
+function acctSay(text, ok) { var m = $('acctMsg'); m.textContent = text || ''; m.className = text ? 'msg ' + (ok ? 'ok' : 'err') : 'msg'; }
+function setMode(up) {
+  signUpMode = up;
+  $('tabIn').classList.toggle('on', !up); $('tabUp').classList.toggle('on', up);
+  $('upFields').style.display = up ? 'block' : 'none';
+  $('pass').autocomplete = up ? 'new-password' : 'current-password';
+  $('acctBtn').textContent = up ? 'Registrar mi empresa' : 'Entrar';
+  acctSay('');
+}
+$('tabIn').onclick = function () { setMode(false); };
+$('tabUp').onclick = function () { setMode(true); };
+function authText(m) {
+  return /Invalid login/i.test(m) ? 'Correo o contraseña incorrectos.'
+    : /already registered|already been registered/i.test(m) ? 'Ese correo ya tiene cuenta: entra con él en «Ya tengo cuenta».'
+    : /Password should be|at least/i.test(m) ? 'La contraseña tiene que tener al menos 8 letras o números.'
+    : /not authorized|confirm/i.test(m) ? 'Ahora no podemos crear cuentas. Escríbenos a ' + MAIL + '.'
+    : /fetch|network/i.test(m) ? 'No se ha podido. Comprueba la conexión.' : m;
+}
+async function realUser() {
+  if (!sb) return null;
+  var s = await sb.auth.getSession(), u = s.data.session && s.data.session.user;
+  return u && !u.is_anonymous ? u : null;
+}
+// Cómo está la empresa: sin entrar (formulario de entrar/registrarse), pendiente, rechazada o verificada (puede publicar)
+async function refreshAcct() {
+  var u = null;
+  try { u = await realUser(); } catch (e) {}
+  company = null;
+  if (u) { try { var r = await sb.rpc('my_load_company'); company = (r && r.data) || null; } catch (e) {} }
+  var inside = !!(u && company);
+  $('acctOut').style.display = inside ? 'none' : 'block';
+  $('acctIn').style.display = inside ? 'block' : 'none';
+  $('f').style.display = inside && company.status === 'verified' ? 'block' : 'none';
+  if (u && !company) { setMode(true); $('email').value = u.email || ''; acctSay('Termina el registro de tu empresa.'); }
+  if (!inside) return;
+  $('coWho').textContent = company.name + ' · ' + (u.email || '');
+  var st = $('coStatus'); st.className = 'status ' + company.status;
+  if (company.status === 'verified') {
+    var left = Math.max(0, (company.monthly_limit || 0) - (company.used || 0));
+    st.textContent = '✅ Empresa verificada. Te quedan ' + left + ' de ' + company.monthly_limit + ' cargas este mes.';
+  } else if (company.status === 'pending') {
+    st.textContent = '⏳ Tu empresa está pendiente de verificar. Te llamaremos al ' + company.phone + ' para verificarla; después ya podrás publicar desde aquí.';
+  } else {
+    st.textContent = '❌ No hemos podido verificar tu empresa' + (company.reason ? ' (' + company.reason + ')' : '') + '. Escríbenos a ' + MAIL + '.';
+  }
+}
+$('acctBtn').onclick = async function () {
+  var email = $('email').value.trim(), pass = $('pass').value, btn = $('acctBtn');
+  if (!sb) return acctSay('No se pudo cargar. Recarga la página.');
+  var u0 = await realUser().catch(function () { return null; });
+  if (!u0) {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return acctSay('Escribe tu correo.');
+    if (pass.length < 8) return acctSay('La contraseña tiene que tener al menos 8 letras o números.');
+  }
+  if (signUpMode) {
+    var name = $('cName').value.trim(), tax = $('cTax').value.trim(), phone = $('cPhone').value.trim(), contact = $('cContact').value.trim(), town = $('cTown').value.trim();
+    if (name.length < 2) return acctSay('Escribe el nombre de la empresa.');
+    if (!taxOk(tax)) return acctSay('Revisa el CIF o NIF (o el número de IVA si la empresa no es de España).');
+    if (!/^[0-9 +().-]{6,30}$/.test(phone) || phone.replace(/[^0-9]/g, '').length < 9) return acctSay('Revisa el teléfono (solo números, espacios y +).');
+    if (contact.length < 2) return acctSay('Escribe la persona de contacto.');
+    if (town.length < 2) return acctSay('Escribe la población.');
+    if (!$('upOk').checked) return acctSay('Marca la casilla para aceptar que los camioneros vean la empresa y el teléfono.');
+  }
+  btn.disabled = true;
+  try {
+    if (!u0) {
+      var r = signUpMode ? await sb.auth.signUp({ email: email, password: pass }) : await sb.auth.signInWithPassword({ email: email, password: pass });
+      if (r.error) throw r.error;
+      if (!r.data.session) throw new Error('confirm');
+    }
+    if (signUpMode) {
+      var rr = await sb.rpc('register_load_company', { p_name: name, p_tax_id: tax, p_phone: phone, p_contact: contact, p_town: town });
+      if (rr.error) throw rr.error;
+    }
+    $('pass').value = '';
+    acctSay('');
+    await refreshAcct();
+    loadMine();
+  } catch (e) {
+    acctSay(authText(String((e && e.message) || e)));
+  } finally { btn.disabled = false; }
+};
+$('logout').onclick = async function () { try { await sb.auth.signOut(); } catch (e) {} setMode(false); refreshAcct(); $('mineBox').style.display = 'none'; };
 var STATUS = { new: 'En revisión', active: 'Publicada', rejected: 'Rechazada', done: 'Terminada' };
 async function loadMine() {
   try {
@@ -266,37 +398,35 @@ $('codeBtn').onclick = function () {
 
 $('f').addEventListener('submit', async function (ev) {
   ev.preventDefault();
-  var company = $('company').value.trim(), phone = $('phone').value.trim(), what = $('what').value.trim();
+  var what = $('what').value.trim();
   var w = $('weight').value.trim().replace(',', '.'), weight = w ? Number(w) : null;
-  if (company.length < 2) return say('Escribe el nombre de la empresa.');
-  if (!/^[0-9 +().-]{6,30}$/.test(phone)) return say('Revisa el teléfono (solo números, espacios y +).');
   if (!picked.from || !picked.to) return say('Escribe el pueblo o la ciudad de carga y de descarga y elígelo en la lista que sale debajo.');
   if (!$('day').value || $('day').value < $('day').min || $('day').value > $('day').max) return say('Revisa la fecha (de hoy a 60 días).');
   if (what.length < 2) return say('Escribe qué es la carga (palés, frío +4 °C…).');
   if (weight != null && !(weight > 0 && weight <= 60)) return say('Revisa el peso: en toneladas, entre 0 y 60.');
-  if (!$('ok').checked) return say('Marca la casilla para aceptar que los camioneros vean la carga y tu teléfono.');
   var btn = $('send'); btn.disabled = true; btn.textContent = 'Enviando…';
   try {
-    await session();
+    if (!company || company.status !== 'verified') { await refreshAcct(); throw new Error('Tu empresa no está verificada'); }
     var r = await sb.rpc('post_return_load', {
-      p_company: company, p_phone: phone, p_from_name: picked.from.name, p_from_lat: picked.from.lat, p_from_lng: picked.from.lng,
+      p_company: company.name, p_phone: company.phone, p_from_name: picked.from.name, p_from_lat: picked.from.lat, p_from_lng: picked.from.lng,
       p_to_name: picked.to.name, p_to_lat: picked.to.lat, p_to_lng: picked.to.lng, p_day: $('day').value, p_time: $('time').value.trim() || null,
       p_what: what, p_weight: weight, p_kinds: Object.keys(kinds).filter(function (k) { return kinds[k]; }), p_price: $('price').value.trim() || null,
     });
     if (r.error) throw r.error;
     var code = r.data && r.data.code;
-    say('✅ Carga enviada. La revisamos y, en cuanto la aprobemos, la verán los camioneros que pasan o vuelven vacíos por allí.'
+    say('✅ Carga publicada. Ya la ven los camioneros que pasan o vuelven vacíos por allí.'
       + (code ? ' Apunta su código: ' + code + ' (con él la quitas cuando esté cubierta, desde cualquier sitio).' : ''), true);
     $('what').value = ''; $('weight').value = ''; $('price').value = ''; $('time').value = '';
-    loadMine();
+    loadMine(); refreshAcct();
   } catch (e) {
     var m = String((e && e.message) || e);
     if (/Ya has publicado/.test(m)) { sayLimit(); return; }
+    if (/verificar|verificada|Registra tu empresa/i.test(m)) { say(m + '.'); return; }
     say(/function|schema/i.test(m) ? 'La bolsa de cargas aún no está activada. Prueba más tarde.'
       : /fetch|network/i.test(m) ? 'No se ha podido. Comprueba la conexión.' : 'No se ha publicado: ' + m);
   } finally { btn.disabled = false; btn.textContent = 'Publicar la carga'; }
 });
-loadMine();
+refreshAcct().then(loadMine);
 </script>
 </body>
 </html>
