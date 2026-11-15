@@ -298,7 +298,7 @@ footer a { color: var(--gris); }
     var raw = (new URLSearchParams(location.search).get('c') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     var cq = raw.replace(/[^A-Z]/g, '');
     if (/^TP[A-Z0-9]{4,10}$/.test(raw)) { document.getElementById('codigo').textContent = 'TP-' + raw.slice(2); document.getElementById('invita').hidden = false; document.getElementById('auto').hidden = true; }
-    else if (['WEB', 'FACEBOOK', 'INSTAGRAM', 'TIKTOK'].indexOf(cq) >= 0) document.getElementById('codigo').textContent = cq;
+    else if (['WEB', 'FACEBOOK', 'INSTAGRAM', 'TIKTOK', 'YOUTUBE'].indexOf(cq) >= 0) document.getElementById('codigo').textContent = cq;
     var code = document.getElementById('codigo').textContent.replace(/-/g, '');
     document.getElementById('tienda').href = 'https://play.google.com/store/apps/details?id=com.truckerpass.gps&referrer=' + encodeURIComponent('tpcode=' + code + '&utm_source=web');
   } catch (e) {}
